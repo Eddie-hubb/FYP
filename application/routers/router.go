@@ -33,6 +33,19 @@ func InitRouter() *gin.Engine {
 		apiV1.POST("/queryDonatingList", v1.QueryDonatingList)
 		apiV1.POST("/queryDonatingListByGrantee", v1.QueryDonatingListByGrantee)
 		apiV1.POST("/updateDonating", v1.UpdateDonating)
+		apiV1.POST("/queryTransactionInfoList", v1.QueryTransactionInfoList)
+		apiV1.POST("/queryMoneyTransactionList", v1.QueryMoneyTransactionList)
+		apiV1.POST("/queryCommodityTransactionList", v1.QueryCommodityTransactionList)
+		apiV1.POST("/queryServiceChargeTransactionList", v1.QueryServiceChargeTransactionList)
+		apiV1.POST("/queryRedemptionFeeTransactionList", v1.QueryRedemptionFeeTransactionList)
+		apiV1.POST("/createPortfolioInfo", v1.CreatePortfolioInfo)
+		apiV1.POST("/createTransactionInfo", v1.CreateTransactionInfo)
+		apiV1.POST("/createSuggestedPortfolioInfo", v1.CreateSuggestedPortfolioInfo)
+		apiV1.POST("/updateState", v1.UpdateState)
+		apiV1.POST("/adjustPortfolio", v1.AdjustPortfolio)
+		apiV1.POST("/adjustNetWorth", v1.AdjustNetWorth)
+
+
 	}
 	// 静态文件路由
 	r.StaticFS("/web", http.Dir("./dist/"))

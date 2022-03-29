@@ -48,5 +48,5 @@ func QueryAccountList(c *gin.Context) {
 		appG.Response(http.StatusInternalServerError, "失败", err.Error())
 		return
 	}
-	appG.Response(http.StatusOK, "成功", data)
+	appG.Response(http.StatusOK, "成功123", data)
 }
