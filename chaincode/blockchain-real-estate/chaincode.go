@@ -85,6 +85,8 @@ func (t *BlockChainRealEstate) Invoke(stub shim.ChaincodeStubInterface) pb.Respo
 		return routers.QueryAccountList(stub, args)
 	case "queryTransactionInfoList":
 		return queryTransactionInfoList(stub, args)
+	case "queryPortfolioList":
+		return queryPortfolioList(stub, args)	
 	case "queryMoneyTransactionList":
 		return queryMoneyTransactionList(stub, args)
 	case "queryCommodityTransactionList":
@@ -180,7 +182,7 @@ type CommodityTransaction struct {
 	CommodityType	Commodity	`json:"commodityType"`
 	CommodityShare	float64	`json:"commodityShare"`
 	Sender			string	`json:"sender"`
-	Reciever 		string	`json:"reciever"`
+	Receiver 		string	`json:"receiver"`
 	CreateTime    	string  `json:"createTime"`    //创建时间
 }
 
@@ -320,11 +322,11 @@ func createSuggestedPortfolioInfo(stub shim.ChaincodeStubInterface, args []strin
 	portfolioInfo.CreateTime = args[3]
 
 
-	// jsonPortfolio, err := json.Marshal(portfolioInfo)
-	// if err != nil {
-	// 	fmt.Println(err.Error())
-	// 	return shim.Error("Error marshalling to JSON")
-	// }
+	jsonPortfolio, err := json.Marshal(portfolioInfo)
+	if err != nil {
+		fmt.Println(err.Error())
+		return shim.Error("Error marshalling to JSON")
+	}
 
 	// err = stub.PutState(portfolioInfoID, jsonPortfolio)
 	// if err != nil {
@@ -343,7 +345,7 @@ func createSuggestedPortfolioInfo(stub shim.ChaincodeStubInterface, args []strin
 
 	
 
-	return shim.Success([]byte(portfolioInfoID))
+	return shim.Success(jsonPortfolio)
 	
 }
 
@@ -351,7 +353,7 @@ func createSuggestedPortfolioInfo(stub shim.ChaincodeStubInterface, args []strin
 // accountID, GoldShare, SilverShare, PlatinumShare
 func createPortfolioInfo(stub shim.ChaincodeStubInterface, args []string) pb.Response {
 	var err error
-	fmt.Println("running the function createPortfolioInfo()")
+	fmt.Println("running the function createPortfolioInfo()111" + time.Now().Local().Format("2006-01-02 15:04:05"))
 
 	if len(args) != 4 {
 		return shim.Error("Wrong input")
@@ -420,11 +422,11 @@ func createPortfolioInfo(stub shim.ChaincodeStubInterface, args []string) pb.Res
 	}
 
 
-	// jsonPortfolio, err := json.Marshal(portfolioInfo)
-	// if err != nil {
-	// 	fmt.Println(err.Error())
-	// 	return shim.Error("Error marshalling to JSON")
-	// }
+	jsonPortfolio, err := json.Marshal(portfolioInfo)
+	if err != nil {
+		fmt.Println(err.Error())
+		return shim.Error("Error marshalling to JSON")
+	}
 
 
 	if err := utils.WriteLedger(portfolioInfo, stub, PortfolioKey, []string{portfolioInfo.PortfolioID, portfolioInfo.AccountID}); err != nil {
@@ -442,9 +444,21 @@ func createPortfolioInfo(stub shim.ChaincodeStubInterface, args []string) pb.Res
 		return shim.Error(err.Error())
 	}
 
-	
+	// valAsbytes, err := stub.GetState(portfolioInfoID)
+	// if err != nil {
+	// 	fmt.Println(err.Error())
+	// 	return shim.Error(err.Error())
+	// } else if valAsbytes == nil {
+	// 	return shim.Error("valAsBytes nil")
+	// }
 
-	return shim.Success([]byte(portfolioInfoID))
+	// var portfolioOutput Portfolio
+	// err = json.Unmarshal(valAsbytes, &portfolioOutput)
+	// if err != nil {
+	// 	fmt.Println(err.Error())
+	// 	return nil, errors.New("Error unmarshalling JSON")
+	// }
+	return shim.Success(jsonPortfolio)
 	
 }
 
@@ -537,7 +551,7 @@ func createTransactionInfoforPortfolio(stub shim.ChaincodeStubInterface, args []
 		// 	return shim.Error("createMoneyTransaction() : Error writing to state")
 		// }
 
-		if err := utils.WriteLedger(moneyTransaction, stub, MoneyTransactionKey, []string{moneyTransaction.MoneyTransactionID, moneyTransaction.Sender}); err != nil {
+		if err := utils.WriteLedger(moneyTransaction, stub, MoneyTransactionKey, []string{moneyTransaction.MoneyTransactionID, moneyTransaction.Sender, moneyTransaction.Receiver}); err != nil {
 			return shim.Error(fmt.Sprintf("%s", err))
 		}
 	
@@ -565,7 +579,7 @@ func createTransactionInfoforPortfolio(stub shim.ChaincodeStubInterface, args []
 
 		// err = stub.PutState(commodityTransaction.CommodityTransactionID, jsonTransaction)
 
-		if err := utils.WriteLedger(commodityTransaction, stub, CommodityTransactionKey, []string{commodityTransaction.CommodityTransactionID, commodityTransaction.Sender}); err != nil {
+		if err := utils.WriteLedger(commodityTransaction, stub, CommodityTransactionKey, []string{commodityTransaction.CommodityTransactionID, commodityTransaction.Sender, commodityTransaction.Receiver}); err != nil {
 			return shim.Error(fmt.Sprintf("%s", err))
 		}
 
@@ -642,11 +656,11 @@ func createTransactionInfo(stub shim.ChaincodeStubInterface, args []string) pb.R
 
 
 
-	// jsonTransaction, err := json.Marshal(transactionInfo)
-	// if err != nil {
-	// 	fmt.Println(err.Error())
-	// 	return shim.Error("Error marshalling to JSON")
-	// }
+	jsonTransaction, err := json.Marshal(transactionInfo)
+	if err != nil {
+		fmt.Println(err.Error())
+		return shim.Error("Error marshalling to JSON")
+	}
 
 	// err = stub.PutState(transactionID, jsonTransaction)
 	// if err != nil {
@@ -715,7 +729,7 @@ func createTransactionInfo(stub shim.ChaincodeStubInterface, args []string) pb.R
 		// 	return shim.Error("createMoneyTransaction() : Error writing to state666")
 		// }
 
-		if err := utils.WriteLedger(moneyTransaction, stub, MoneyTransactionKey, []string{moneyTransaction.MoneyTransactionID, moneyTransaction.Sender}); err != nil {
+		if err := utils.WriteLedger(moneyTransaction, stub, MoneyTransactionKey, []string{moneyTransaction.MoneyTransactionID, moneyTransaction.Sender, moneyTransaction.Receiver}); err != nil {
 			return shim.Error(fmt.Sprintf("%s", err))
 		}
 
@@ -741,7 +755,7 @@ func createTransactionInfo(stub shim.ChaincodeStubInterface, args []string) pb.R
 		// }
 		// err = stub.PutState(commodityTransaction.CommodityTransactionID, jsonTransaction)
 		
-		if err := utils.WriteLedger(commodityTransaction, stub, CommodityTransactionKey, []string{commodityTransaction.CommodityTransactionID, commodityTransaction.Sender}); err != nil {
+		if err := utils.WriteLedger(commodityTransaction, stub, CommodityTransactionKey, []string{commodityTransaction.CommodityTransactionID, commodityTransaction.Sender, commodityTransaction.Receiver}); err != nil {
 			return shim.Error(fmt.Sprintf("%s", err))
 		}
 
@@ -774,12 +788,12 @@ func createTransactionInfo(stub shim.ChaincodeStubInterface, args []string) pb.R
 		return shim.Error(err.Error())
 	}
 
-	return shim.Success([]byte(transactionID))
+	return shim.Success(jsonTransaction)
 	
 }
 
 func (portfolio *Portfolio) getPortfolio(stub shim.ChaincodeStubInterface, ID string) error{
-	valAsbytes, err := utils.GetStateByPartialCompositeKeys(stub, AccountKey, []string{ID})
+	valAsbytes, err := utils.GetStateByPartialCompositeKeys(stub, PortfolioKey, []string{ID})
 
 	if err != nil {
 		fmt.Println(err.Error())
@@ -900,11 +914,11 @@ func adjustPortfolio(stub shim.ChaincodeStubInterface, args []string) pb.Respons
 	}
 
 
-	// jsonPortfolio, err := json.Marshal(portfolioInfo)
-	// if err != nil {
-	// 	fmt.Println(err.Error())
-	// 	return shim.Error("Error marshalling to JSON")
-	// }
+	jsonPortfolio, err := json.Marshal(portfolioInfo)
+	if err != nil {
+		fmt.Println(err.Error())
+		return shim.Error("Error marshalling to JSON")
+	}
 
 	// err = stub.PutState(portfolioInfoID, jsonPortfolio)
 	// if err != nil {
@@ -923,7 +937,7 @@ func adjustPortfolio(stub shim.ChaincodeStubInterface, args []string) pb.Respons
 
 	
 
-	return shim.Success([]byte(portfolioInfoID))
+	return shim.Success(jsonPortfolio)
 
 }
 
@@ -992,21 +1006,21 @@ func (account *Account) getAccount(stub shim.ChaincodeStubInterface, ID string) 
 func updateState(stub shim.ChaincodeStubInterface, args []string) pb.Response {
 	var transactionID string
 	var err error
-	var transactionInfo *TransactionInfo
+	var transactionInfo TransactionInfo
 
 	if len(args) != 2 { 
 		return shim.Error("Wrong input")
 	}
 	transactionID = args[0]
-	transactionInfo, err = queryTransactionInfobyID(stub, transactionID)
+	err = transactionInfo.queryTransactionInfobyID(stub, transactionID)
 	if err != nil {
 		fmt.Println(err.Error())
 		return shim.Error(err.Error())
 	}
-	if transactionInfo == nil {
-		fmt.Println("Error reading state : transactionInfo is nil")
-		return shim.Error("nil transaction")
-	}
+	// if transactionInfo == nil {
+	// 	fmt.Println("Error reading state : transactionInfo is nil")
+	// 	return shim.Error("nil transaction")
+	// }
 	newTransactionState := args[1]
 	err = transactionInfo.updateTransactionState(newTransactionState)
 	if err != nil {
@@ -1128,7 +1142,7 @@ func updateState(stub shim.ChaincodeStubInterface, args []string) pb.Response {
 		// 	return shim.Error("createMoneyTransaction() : Error writing to state")
 		// }
 
-		if err := utils.WriteLedger(redemptionFeeTransaction, stub, RedemptionFeeTransactionKey, []string{redemptionFeeTransaction.RedemptionFeeTransactionID, redemptionFeeTransaction.Sender}); err != nil {
+		if err := utils.WriteLedger(redemptionFeeTransaction, stub, RedemptionFeeTransactionKey, []string{redemptionFeeTransaction.RedemptionFeeTransactionID, redemptionFeeTransaction.Sender, redemptionFeeTransaction.Receiver}); err != nil {
 			return shim.Error(fmt.Sprintf("%s", err))
 		}
 
@@ -1209,7 +1223,7 @@ func updateState(stub shim.ChaincodeStubInterface, args []string) pb.Response {
 		// if err != nil {
 		// 	return shim.Error("createMoneyTransaction() : Error writing to state")
 		// }
-		if err := utils.WriteLedger(serviceChargeTransaction, stub, CommodityTransactionKey, []string{serviceChargeTransaction.ServiceChargeTransactionID, serviceChargeTransaction.Sender}); err != nil {
+		if err := utils.WriteLedger(serviceChargeTransaction, stub, CommodityTransactionKey, []string{serviceChargeTransaction.ServiceChargeTransactionID, serviceChargeTransaction.Sender, serviceChargeTransaction.Receiver}); err != nil {
 			return shim.Error(fmt.Sprintf("%s", err))
 		}
 		
@@ -1261,23 +1275,23 @@ func updateState(stub shim.ChaincodeStubInterface, args []string) pb.Response {
 }
 
 
-func queryTransactionInfobyID(stub shim.ChaincodeStubInterface, ID string) (*TransactionInfo, error) {
-	valAsbytes, err := stub.GetState(ID)
+func (transactionInfo *TransactionInfo) queryTransactionInfobyID(stub shim.ChaincodeStubInterface, ID string) error {
+	valAsbytes, err := utils.GetStateByPartialCompositeKeys(stub, TransactionKey, []string{ID})
+
 	if err != nil {
 		fmt.Println(err.Error())
-		return nil, err
+		return err
 	} else if valAsbytes == nil {
-		return nil, errors.New("Transaction does not exist")
+		return errors.New("Transaction does not exist")
 	}
 
-	var transactionInfo TransactionInfo
-	err = json.Unmarshal(valAsbytes, &transactionInfo)
-	if err != nil {
-		fmt.Println(err.Error())
-		return nil, errors.New("Error unmarshalling JSON")
-	}
 
-	return &transactionInfo, nil
+	if err = json.Unmarshal(valAsbytes[0], &transactionInfo); err != nil {
+		return err
+	}
+	
+	return nil
+	
 }
 
 // QuerySellingList 查询销售(可查询所有，也可根据发起销售人查询)(发起的)(供卖家查询)
@@ -1298,6 +1312,30 @@ func queryTransactionInfoList(stub shim.ChaincodeStubInterface, args []string) p
 		}
 	}
 	transactionListByte, err := json.Marshal(transactionList)
+	if err != nil {
+		return shim.Error(fmt.Sprintf("queryTransactionInfoList-序列化出错: %s", err))
+	}
+	return shim.Success(transactionListByte)
+}
+
+// QuerySellingList 查询销售(可查询所有，也可根据发起销售人查询)(发起的)(供卖家查询)
+func queryPortfolioList(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+	var portfolioList []Portfolio
+	results, err := utils.GetStateByPartialCompositeKeys2(stub, PortfolioKey, args)
+	if err != nil {
+		return shim.Error(fmt.Sprintf("%s", err))
+	}
+	for _, v := range results {
+		if v != nil {
+			var transaction Portfolio
+			err := json.Unmarshal(v, &transaction)
+			if err != nil {
+				return shim.Error(fmt.Sprintf("queryTransactionInfoList-反序列化出错: %s", err))
+			}
+			portfolioList = append(portfolioList, transaction)
+		}
+	}
+	transactionListByte, err := json.Marshal(portfolioList)
 	if err != nil {
 		return shim.Error(fmt.Sprintf("queryTransactionInfoList-序列化出错: %s", err))
 	}

@@ -55,7 +55,7 @@
 
 <script>
 import { mapGetters } from 'vuex'
-import { querySellingList, createSellingByBuy, updateSelling } from '@/api/selling'
+import { querySellingList, createSellingByBuy, updateSelling, queryPortfolioList } from '@/api/selling'
 
 export default {
   name: 'AllSelling',
@@ -81,6 +81,10 @@ export default {
       this.loading = false
     }).catch(_ => {
       this.loading = false
+    })
+
+    queryPortfolioList().then(res => {
+      console.log(res);
     })
   },
   methods: {

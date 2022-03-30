@@ -33,6 +33,7 @@ func InitRouter() *gin.Engine {
 		apiV1.POST("/queryDonatingList", v1.QueryDonatingList)
 		apiV1.POST("/queryDonatingListByGrantee", v1.QueryDonatingListByGrantee)
 		apiV1.POST("/updateDonating", v1.UpdateDonating)
+		apiV1.POST("/queryPortfolioList", v1.QueryPortfolioList)
 		apiV1.POST("/queryTransactionInfoList", v1.QueryTransactionInfoList)
 		apiV1.POST("/queryMoneyTransactionList", v1.QueryMoneyTransactionList)
 		apiV1.POST("/queryCommodityTransactionList", v1.QueryCommodityTransactionList)

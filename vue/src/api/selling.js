@@ -44,3 +44,12 @@ export function createSelling(data) {
     data
   })
 }
+
+// ------------------ new ----------------------//
+export function queryPortfolioList() {
+  return request({
+    url: '"/queryPortfolioList',
+    method: 'post',
+    data
+  })
+}

@@ -18,6 +18,14 @@ import (
 // 	Account []AccountIdBody `json:"account"`
 // }
 
+type PortfolioIdBody struct {
+	PortfolioId string `json:"portfolioId"`
+}
+
+type PortfolioInfoRequestBody struct {
+	Portfolio []PortfolioIdBody `json:"portfolio"`
+}
+
 type TransactionIdBody struct {
 	TransactionId string `json:"transactionId"`
 }
@@ -74,6 +82,7 @@ type TransactionInfoRequestBody struct {
 }
 
 type TransactionStateRequestBody struct {
+	TransactionID	string	`json:"transactionID"`
 	NewState	string `json:"newState"`	
 }
 
@@ -133,6 +142,35 @@ type AdjustedPortfolioRequestBody struct {
 // 	}
 // 	appG.Response(http.StatusOK, "成功", data)
 // }
+
+
+
+func QueryPortfolioList(c *gin.Context) {
+	appG := app.Gin{C: c}
+	body := new(PortfolioInfoRequestBody)
+	//解析Body参数
+	if err := c.ShouldBind(body); err != nil {
+		appG.Response(http.StatusBadRequest, "失败", fmt.Sprintf("参数出错%s", err.Error()))
+		return
+	}
+	var bodyBytes [][]byte
+	for _, val := range body.Portfolio {
+		bodyBytes = append(bodyBytes, []byte(val.PortfolioId))
+	}
+	//调用智能合约
+	resp, err := bc.ChannelQuery("queryPortfolioList", bodyBytes)
+	if err != nil {
+		appG.Response(http.StatusInternalServerError, "失败", err.Error())
+		return
+	}
+	// 反序列化json
+	var data []map[string]interface{}
+	if err = json.Unmarshal(bytes.NewBuffer(resp.Payload).Bytes(), &data); err != nil {
+		appG.Response(http.StatusInternalServerError, "失败", err.Error())
+		return
+	}
+	appG.Response(http.StatusOK, "成功", data)
+}
 
 
 func QueryTransactionInfoList(c *gin.Context) {
@@ -274,7 +312,6 @@ func QueryRedemptionFeeTransactionList(c *gin.Context) {
 func CreatePortfolioInfo(c *gin.Context) {
 	appG := app.Gin{C: c}
 	body := new(PortfolioRequestBody)
-	log.Printf("here")
 	//解析Body参数
 	if err := c.ShouldBind(body); err != nil {
 		appG.Response(http.StatusBadRequest, "失败1", fmt.Sprintf("参数出错123%s", err.Error()))
@@ -397,6 +434,7 @@ func UpdateState(c *gin.Context) {
 	// 	return
 	// }
 	var bodyBytes [][]byte
+	bodyBytes = append(bodyBytes, []byte(body.TransactionID))
 	bodyBytes = append(bodyBytes, []byte(body.NewState))
 
 	//调用智能合约
