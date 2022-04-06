@@ -16,7 +16,10 @@ const getDefaultState = () => {
     accountId: '',
     userName: '',
     balance: 0,
-    roles: []
+    roles: [],
+    goldShare: 0,
+    silverShare: 0,
+    platinumShare: 0
   }
 }
 
@@ -40,6 +43,15 @@ const mutations = {
   },
   SET_ROLES: (state, roles) => {
     state.roles = roles
+  },
+  SET_GOLD: (state, goldShare) => {
+    state.goldShare = goldShare
+  },
+  SET_SILVER: (state, silverShare) => {
+    state.silverShare = silverShare
+  },
+  SET_PLATINUM: (state, platinumShare) => {
+    state.platinumShare = platinumShare
   }
 }
 
@@ -72,16 +84,15 @@ const actions = {
           accountId: state.token
         }]
       }).then(response => {
-        var roles
-        if (response[0].userName === '管理员') {
-          roles = ['admin']
-        } else {
-          roles = ['editor']
-        }
-        commit('SET_ROLES', roles)
+        var roles = [response[0].role]
+        commit('SET_ROLES', [response[0].role])
         commit('SET_ACCOUNTID', response[0].accountId)
         commit('SET_USERNAME', response[0].userName)
         commit('SET_BALANCE', response[0].balance)
+        commit('SET_GOLD', response[0].goldShare)
+        commit('SET_SILVER', response[0].silverShare)
+        commit('SET_PLATINUM', response[0].platinumShare)
+
         resolve(roles)
       }).catch(error => {
         reject(error)

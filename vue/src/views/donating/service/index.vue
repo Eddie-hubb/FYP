@@ -7,10 +7,7 @@
           <span>{{ val.createTime }}</span>
         </div>
         <div class="item">
-          <span>Commodity: {{ val.commodityType.commodityName }}</span>
-        </div>
-        <div class="item">
-          <span>Commodity Share: {{ val.commodityShare }}</span>
+          <span>Amount Of Money: {{ val.amountOfMoney }}</span>
         </div>
         <div class="item">
           <span>Receiver: {{ val.receiver }}</span>
@@ -25,11 +22,11 @@
 
 <script>
 import { mapGetters } from 'vuex'
-import { queryCommodityTransactionList } from '@/api/transaction'
+import { queryServiceChargeTransactionList } from '@/api/transaction'
 import UserInfoBar from '@/components/UserInfoBar'
 
 export default {
-  name: 'Commodity',
+  name: 'ServiceCharge',
   components: {
     UserInfoBar
   },
@@ -47,7 +44,7 @@ export default {
     ])
   },
   created() {
-    queryCommodityTransactionList({ accountID: this.accountId }).then(response => {
+    queryServiceChargeTransactionList({ accountID: this.accountId }).then(response => {
       if (response !== null) {
         this.transactionInfoList = response
       }

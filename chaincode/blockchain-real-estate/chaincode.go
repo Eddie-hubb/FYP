@@ -5,7 +5,7 @@ import (
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 	pb "github.com/hyperledger/fabric/protos/peer"
 	//"github.com/togettoyou/blockchain-real-estate/chaincode/blockchain-real-estate/lib"
-	"github.com/togettoyou/blockchain-real-estate/chaincode/blockchain-real-estate/routers"
+	//"github.com/togettoyou/blockchain-real-estate/chaincode/blockchain-real-estate/routers"
 	"github.com/togettoyou/blockchain-real-estate/chaincode/blockchain-real-estate/utils"
 	"time"
 	"encoding/json"
@@ -41,7 +41,16 @@ func (t *BlockChainRealEstate) Init(stub shim.ChaincodeStubInterface) pb.Respons
 	var goldShares = [6]float64{0, 0, 0, 10000, 0, 0}
 	var silverShares = [6]float64{0, 0, 0, 0, 10000, 0}
 	var platinumShares = [6]float64{0, 0, 0, 0, 0, 10000}
+	var commodityShareList = [6][]CommodityShareInfo{
+		{{gold, 0}, {silver, 0}, {platinum, 0}}, 
+		{{gold, 0}, {silver, 0}, {platinum, 0}},
+		{{gold, 0}, {silver, 0}, {platinum, 0}},
+		{{gold, 0}, {silver, 0}, {platinum, 0}},
+		{{gold, 0}, {silver, 0}, {platinum, 0}},
+		{{gold, 0}, {silver, 0}, {platinum, 0}}}
+	var role = [6]string{"admin", "manager", "investor", "whale", "whale", "whale"}
 
+	
 	//初始化账号数据
 	for i, val := range accountIds {
 		account := &Account{
@@ -51,6 +60,8 @@ func (t *BlockChainRealEstate) Init(stub shim.ChaincodeStubInterface) pb.Respons
 			GoldShare:	goldShares[i],
 			SilverShare:	silverShares[i],
 			PlatinumShare:	platinumShares[i],
+			CommodityShareList:	commodityShareList[i],
+			Role:	role[i],
 		}
 		// 写入账本
 		if err := utils.WriteLedger(account, stub, AccountKey, []string{val}); err != nil {
@@ -82,7 +93,7 @@ func (t *BlockChainRealEstate) Invoke(stub shim.ChaincodeStubInterface) pb.Respo
 	case "adjustNetWorth":
 		return adjustNetWorth(stub, args)
 	case "queryAccountList":
-		return routers.QueryAccountList(stub, args)
+		return QueryAccountList(stub, args)
 	case "queryTransactionInfoList":
 		return queryTransactionInfoList(stub, args)
 	case "queryPortfolioList":
@@ -95,7 +106,13 @@ func (t *BlockChainRealEstate) Invoke(stub shim.ChaincodeStubInterface) pb.Respo
 		return queryRedemptionFeeTransactionList(stub, args)
 	case "queryServiceChargeTransactionList":
 		return queryServiceChargeTransactionList(stub, args)
-	
+	case "queryCommodityTypeList":
+		return queryCommodityTypeList(stub, args)
+	case "get":
+		return get(stub, args)
+	case "set":
+		return set(stub, args)
+
 	
 	
 	
@@ -110,12 +127,18 @@ const (
 	layout = "2006-01-02"
 )
 
+type Student struct {
+	Name  string
+	Age   int
+	Score int
+}
 
 type SuggestedPortfolio struct {
 	SuggestedPortfolioID 	string	`json:"portfolioID"`
 	GoldShare		float64	`json:"goldShare"`
 	SilverShare		float64	`json:"silverShare"`
 	PlatinumShare	float64	`json:"platinumShare"`
+	// CommodityShareList []CommodityShareInfo `json:"commodityShareList"`
 	CreateTime    	string  `json:"createTime"`   
 }
 
@@ -126,15 +149,24 @@ type Account struct {
 	GoldShare float64 `json:"goldShare"`
 	SilverShare float64 `json:"silverShare"`
 	PlatinumShare float64 `json:"platinumShare"`
+	CommodityShareList []CommodityShareInfo `json:"commodityShareList"`
+	Role 	string	`json:"role"` 
 }
 
 type Portfolio struct {
 	PortfolioID 	string	`json:"portfolioID"`
+	PortfolioState 	PortfolioStateType 	`json:"portfolioState"`
 	AccountID 		string	`json:"accountID"`
 	GoldShare		float64	`json:"goldShare"`
 	SilverShare		float64	`json:"silverShare"`
 	PlatinumShare	float64	`json:"platinumShare"`
+	// CommodityShareList []CommodityShareInfo `json:"commodityShareList"`
 	CreateTime    	string  `json:"createTime"`    
+}
+
+type PortfolioStateType struct {
+	PortfolioStateTypeName	string	`json:"PortfolioStateTypeName"`
+	PortfolioStateTypeId	int	`json:"PortfolioStateTypeId"`
 }
 
 type TransactionInfo struct {
@@ -192,10 +224,17 @@ type Commodity struct {
 	CommodityNetWorth float64	`json:"commodityNetWorth"`
 }
 
+
+type CommodityShareInfo struct {
+	CommodityType Commodity `json:"commodityType"`
+	CommodityShare	float64 `json:"commodityShare"`
+}
+
 type TransactionState struct {
 	TransactionStateName string	`json:"transactionStateName"`
 	TransactionStateID int	`json:"transactionStateID"`
 }
+
 
 const (
 	AccountKey         = "account-key"
@@ -212,10 +251,14 @@ const (
 var gold = Commodity{"gold", 1, 300.0}
 var silver = Commodity{"silver", 2, 200.0}
 var platinum = Commodity{"platinum", 3, 100.0}
+var commodityList = [3]Commodity{gold, silver, platinum}
 
-var stateInProcess = TransactionState{"inProceess", 1}
+var stateInProcess = TransactionState{"inProcess", 1}
 var stateSuccess = TransactionState{"success", 2}
 var stateFail = TransactionState{"fail", 3}
+
+var portfolioStateWorking = PortfolioStateType{"working", 1}
+var portfolioStateExpired = PortfolioStateType{"expired", 2}
 
 var tradingManagerID = "6b86b273ff34"
 var goldWhaleID = "4e07408562be"
@@ -245,14 +288,15 @@ func Decimal(value float64) float64 {
 
 func adjustNetWorth(stub shim.ChaincodeStubInterface, args []string) pb.Response{
 	fmt.Println("running the function adjustNetWorth()")
-	var commodityList []Commodity
+	// var tempCommodityList []Commodity
 	var err error
 	gold.CommodityNetWorth,  err  = strconv.ParseFloat(args[0],64)
 	silver.CommodityNetWorth,  err  = strconv.ParseFloat(args[1],64)
 	platinum.CommodityNetWorth,  err  = strconv.ParseFloat(args[2],64)
-	commodityList = append(commodityList, gold)
-	commodityList = append(commodityList, silver)
-	commodityList = append(commodityList, platinum)
+	// tempCommodityList = append(tempCommodityList, gold)
+	// tempCommodityList = append(tempCommodityList, silver)
+	// tempCommodityList = append(tempCommodityList, platinum)
+	commodityList = [3]Commodity{gold, silver, platinum}
 	commodityListByte, err := json.Marshal(commodityList)
 	if err != nil {
 		return shim.Error(fmt.Sprintf("commodityList-序列化出错: %s", err))
@@ -266,7 +310,7 @@ func adjustNetWorth(stub shim.ChaincodeStubInterface, args []string) pb.Response
 
 func QueryAccountList(stub shim.ChaincodeStubInterface, args []string) pb.Response {
 	var accountList []Account
-	results, err := utils.GetStateByPartialCompositeKeys(stub, AccountKey, args)
+	results, err := utils.GetStateByPartialCompositeKeys2(stub, AccountKey, args)
 	if err != nil {
 		return shim.Error(fmt.Sprintf("%s", err))
 	}
@@ -364,6 +408,7 @@ func createPortfolioInfo(stub shim.ChaincodeStubInterface, args []string) pb.Res
 	var portfolioInfo Portfolio
 	portfolioInfoID := stub.GetTxID()
 	portfolioInfo.PortfolioID = portfolioInfoID
+	portfolioInfo.PortfolioState = portfolioStateWorking
 	portfolioInfo.AccountID = args[0]
 	portfolioGoldShare,  err := strconv.ParseFloat(args[1],64)
 	if err != nil {
@@ -420,6 +465,7 @@ func createPortfolioInfo(stub shim.ChaincodeStubInterface, args []string) pb.Res
 		platinumString = append(platinumString, "0")//selling share
 		createTransactionInfoforPortfolio(stub, platinumString)
 	}
+	
 
 
 	jsonPortfolio, err := json.Marshal(portfolioInfo)
@@ -429,7 +475,7 @@ func createPortfolioInfo(stub shim.ChaincodeStubInterface, args []string) pb.Res
 	}
 
 
-	if err := utils.WriteLedger(portfolioInfo, stub, PortfolioKey, []string{portfolioInfo.PortfolioID, portfolioInfo.AccountID}); err != nil {
+	if err := utils.WriteLedger(portfolioInfo, stub, PortfolioKey, []string{portfolioInfo.AccountID, portfolioInfo.PortfolioID}); err != nil {
 		return shim.Error(fmt.Sprintf("%s", err))
 	}
 
@@ -521,7 +567,7 @@ func createTransactionInfoforPortfolio(stub shim.ChaincodeStubInterface, args []
 	// 	return shim.Error("createTransactionInfo() : Error writing to state")
 	// }
 
-	if err := utils.WriteLedger(transactionInfo, stub, TransactionKey, []string{transactionInfo.TransactionID, transactionInfo.BuyerID}); err != nil {
+	if err := utils.WriteLedger(transactionInfo, stub, TransactionKey, []string{transactionInfo.BuyerID, transactionInfo.TransactionID}); err != nil {
 		return shim.Error(fmt.Sprintf("%s", err))
 	}
 
@@ -551,7 +597,7 @@ func createTransactionInfoforPortfolio(stub shim.ChaincodeStubInterface, args []
 		// 	return shim.Error("createMoneyTransaction() : Error writing to state")
 		// }
 
-		if err := utils.WriteLedger(moneyTransaction, stub, MoneyTransactionKey, []string{moneyTransaction.MoneyTransactionID, moneyTransaction.Sender, moneyTransaction.Receiver}); err != nil {
+		if err := utils.WriteLedger(moneyTransaction, stub, MoneyTransactionKey, []string{moneyTransaction.Sender, moneyTransaction.MoneyTransactionID, moneyTransaction.Receiver}); err != nil {
 			return shim.Error(fmt.Sprintf("%s", err))
 		}
 	
@@ -579,7 +625,7 @@ func createTransactionInfoforPortfolio(stub shim.ChaincodeStubInterface, args []
 
 		// err = stub.PutState(commodityTransaction.CommodityTransactionID, jsonTransaction)
 
-		if err := utils.WriteLedger(commodityTransaction, stub, CommodityTransactionKey, []string{commodityTransaction.CommodityTransactionID, commodityTransaction.Sender, commodityTransaction.Receiver}); err != nil {
+		if err := utils.WriteLedger(commodityTransaction, stub, CommodityTransactionKey, []string{commodityTransaction.Sender, commodityTransaction.CommodityTransactionID, commodityTransaction.Receiver}); err != nil {
 			return shim.Error(fmt.Sprintf("%s", err))
 		}
 
@@ -667,7 +713,7 @@ func createTransactionInfo(stub shim.ChaincodeStubInterface, args []string) pb.R
 	// 	return shim.Error("createTransactionInfo() : Error writing to state111")
 	// }
 
-	if err := utils.WriteLedger(transactionInfo, stub, TransactionKey, []string{transactionInfo.TransactionID, transactionInfo.BuyerID}); err != nil {
+	if err := utils.WriteLedger(transactionInfo, stub, TransactionKey, []string{transactionInfo.BuyerID, transactionInfo.TransactionID}); err != nil {
 		return shim.Error(fmt.Sprintf("%s", err))
 	}
 
@@ -683,6 +729,7 @@ func createTransactionInfo(stub shim.ChaincodeStubInterface, args []string) pb.R
 	
 
 	var buyerAccount Account
+	
 
 	if err = json.Unmarshal(valAsbytes[0], &buyerAccount); err != nil {
 		return shim.Error(fmt.Sprintf("Unmarshal fail: %s", err))
@@ -729,7 +776,7 @@ func createTransactionInfo(stub shim.ChaincodeStubInterface, args []string) pb.R
 		// 	return shim.Error("createMoneyTransaction() : Error writing to state666")
 		// }
 
-		if err := utils.WriteLedger(moneyTransaction, stub, MoneyTransactionKey, []string{moneyTransaction.MoneyTransactionID, moneyTransaction.Sender, moneyTransaction.Receiver}); err != nil {
+		if err := utils.WriteLedger(moneyTransaction, stub, MoneyTransactionKey, []string{moneyTransaction.Sender, moneyTransaction.MoneyTransactionID, moneyTransaction.Receiver}); err != nil {
 			return shim.Error(fmt.Sprintf("%s", err))
 		}
 
@@ -755,7 +802,7 @@ func createTransactionInfo(stub shim.ChaincodeStubInterface, args []string) pb.R
 		// }
 		// err = stub.PutState(commodityTransaction.CommodityTransactionID, jsonTransaction)
 		
-		if err := utils.WriteLedger(commodityTransaction, stub, CommodityTransactionKey, []string{commodityTransaction.CommodityTransactionID, commodityTransaction.Sender, commodityTransaction.Receiver}); err != nil {
+		if err := utils.WriteLedger(commodityTransaction, stub, CommodityTransactionKey, []string{commodityTransaction.Sender, commodityTransaction.CommodityTransactionID, commodityTransaction.Receiver}); err != nil {
 			return shim.Error(fmt.Sprintf("%s", err))
 		}
 
@@ -792,8 +839,8 @@ func createTransactionInfo(stub shim.ChaincodeStubInterface, args []string) pb.R
 	
 }
 
-func (portfolio *Portfolio) getPortfolio(stub shim.ChaincodeStubInterface, ID string) error{
-	valAsbytes, err := utils.GetStateByPartialCompositeKeys(stub, PortfolioKey, []string{ID})
+func (portfolio *Portfolio) getPortfolio(stub shim.ChaincodeStubInterface, accountId string, ID string) error{
+	valAsbytes, err := utils.GetStateByPartialCompositeKeys2(stub, PortfolioKey, []string{accountId, ID})
 
 	if err != nil {
 		fmt.Println(err.Error())
@@ -820,12 +867,13 @@ func adjustPortfolio(stub shim.ChaincodeStubInterface, args []string) pb.Respons
 	
 	previousPortfolioID := args[0]
 	var previousPortfolio Portfolio
-	err = previousPortfolio.getPortfolio(stub, previousPortfolioID)
-
+	err = previousPortfolio.getPortfolio(stub, args[1], previousPortfolioID)
+	previousPortfolio.PortfolioState = portfolioStateExpired
 
 	var portfolioInfo Portfolio
 	portfolioInfoID := stub.GetTxID()
 	portfolioInfo.PortfolioID = portfolioInfoID
+	portfolioInfo.PortfolioState = portfolioStateWorking
 	portfolioInfo.AccountID = args[1]
 	portfolioGoldShare,  err := strconv.ParseFloat(args[2],64)
 	if err != nil {
@@ -925,7 +973,11 @@ func adjustPortfolio(stub shim.ChaincodeStubInterface, args []string) pb.Respons
 	// 	return shim.Error("createPortfolio() : Error writing to state")
 	// }
 
-	if err := utils.WriteLedger(portfolioInfo, stub, PortfolioKey, []string{portfolioInfo.PortfolioID, portfolioInfo.AccountID}); err != nil {
+	if err := utils.WriteLedger(portfolioInfo, stub, PortfolioKey, []string{portfolioInfo.AccountID, portfolioInfo.PortfolioID}); err != nil {
+		return shim.Error(fmt.Sprintf("%s", err))
+	}
+
+	if err := utils.WriteLedger(previousPortfolio, stub, PortfolioKey, []string{previousPortfolio.AccountID, previousPortfolio.PortfolioID}); err != nil {
 		return shim.Error(fmt.Sprintf("%s", err))
 	}
 
@@ -1008,11 +1060,12 @@ func updateState(stub shim.ChaincodeStubInterface, args []string) pb.Response {
 	var err error
 	var transactionInfo TransactionInfo
 
-	if len(args) != 2 { 
+	if len(args) != 3 { 
 		return shim.Error("Wrong input")
 	}
-	transactionID = args[0]
-	err = transactionInfo.queryTransactionInfobyID(stub, transactionID)
+	accountID := args[0]
+	transactionID = args[1]
+	err = transactionInfo.queryTransactionInfobyID(stub, accountID, transactionID)
 	if err != nil {
 		fmt.Println(err.Error())
 		return shim.Error(err.Error())
@@ -1021,7 +1074,7 @@ func updateState(stub shim.ChaincodeStubInterface, args []string) pb.Response {
 	// 	fmt.Println("Error reading state : transactionInfo is nil")
 	// 	return shim.Error("nil transaction")
 	// }
-	newTransactionState := args[1]
+	newTransactionState := args[2]
 	err = transactionInfo.updateTransactionState(newTransactionState)
 	if err != nil {
 		fmt.Println(err.Error())
@@ -1039,7 +1092,7 @@ func updateState(stub shim.ChaincodeStubInterface, args []string) pb.Response {
 	// 	return shim.Error("updateTransactionInfo() : Error put state")
 	// }
 
-	if err := utils.WriteLedger(transactionInfo, stub, TransactionKey, []string{transactionInfo.TransactionID, transactionInfo.BuyerID}); err != nil {
+	if err := utils.WriteLedger(transactionInfo, stub, TransactionKey, []string{transactionInfo.BuyerID, transactionInfo.TransactionID}); err != nil {
 		return shim.Error(fmt.Sprintf("%s", err))
 	}
 
@@ -1078,35 +1131,18 @@ func updateState(stub shim.ChaincodeStubInterface, args []string) pb.Response {
 	if(transactionInfo.PurchaseShare == 0){		
 
 		var commodityTransactionTrade2Whale = CommodityTransaction{transactionInfo.TransactionID + "PurchaseCommodityTrade2Whale", transactionInfo.CommodityType, transactionInfo.SellShare,  tradingManagerID, whaleID, time.Now().Local().Format("2006-01-02 15:04:05")}
-		// jsonTransaction, err := json.Marshal(commodityTransactionTrade2Whale)
-		// if err != nil {
-		// 	fmt.Println(err.Error())
-		// 	return shim.Error("Error marshalling to JSON")
-		// }
 
-		
 
-		// err = stub.PutState(commodityTransactionTrade2Whale.CommodityTransactionID, jsonTransaction)
-		// if err != nil {
-		// 	return shim.Error("createMoneyTransaction() : Error writing to state")
-		// }
-
-		if err := utils.WriteLedger(commodityTransactionTrade2Whale, stub, CommodityTransactionKey, []string{commodityTransactionTrade2Whale.CommodityTransactionID, commodityTransactionTrade2Whale.Sender}); err != nil {
+		if err := utils.WriteLedger(commodityTransactionTrade2Whale, stub, CommodityTransactionKey, []string{commodityTransactionTrade2Whale.Receiver, commodityTransactionTrade2Whale.CommodityTransactionID, commodityTransactionTrade2Whale.Sender}); err != nil {
 			return shim.Error(fmt.Sprintf("%s", err))
 		}
 
 		
 
 		var moneyTransactionWhale2Trade = MoneyTransaction{transactionInfo.TransactionID + "RedemptionMoneyWhale2Trade", transactionInfo.SellAmount, whaleID,  tradingManagerID, time.Now().Local().Format("2006-01-02 15:04:05")}
-		// jsonTransaction, err = json.Marshal(moneyTransactionWhale2Trade)
-		// if err != nil {
-		// 	fmt.Println(err.Error())
-		// 	return shim.Error("Error marshalling to JSON")
-		// }
 
-		// err = stub.PutState(moneyTransactionWhale2Trade.MoneyTransactionID, jsonTransaction)
 		
-		if err := utils.WriteLedger(moneyTransactionWhale2Trade, stub, MoneyTransactionKey, []string{moneyTransactionWhale2Trade.MoneyTransactionID, moneyTransactionWhale2Trade.Sender}); err != nil {
+		if err := utils.WriteLedger(moneyTransactionWhale2Trade, stub, MoneyTransactionKey, []string{moneyTransactionWhale2Trade.Sender, moneyTransactionWhale2Trade.MoneyTransactionID, moneyTransactionWhale2Trade.Receiver}); err != nil {
 			return shim.Error(fmt.Sprintf("%s", err))
 		}
 
@@ -1115,34 +1151,22 @@ func updateState(stub shim.ChaincodeStubInterface, args []string) pb.Response {
 		}
 
 		var moneyTransactionTrade2User = MoneyTransaction{transactionInfo.TransactionID + "RedemptionMoneyTrade2User", transactionInfo.SellAmount,  tradingManagerID, transactionInfo.BuyerID, time.Now().Local().Format("2006-01-02 15:04:05")}
-		// jsonTransaction, err = json.Marshal(moneyTransactionTrade2User)
-		// if err != nil {
-		// 	fmt.Println(err.Error())
-		// 	return shim.Error("Error marshalling to JSON")
-		// }
 
-		// err = stub.PutState(moneyTransactionTrade2User.MoneyTransactionID, jsonTransaction)
-		// if err != nil {
-		// 	return shim.Error("createMoneyTransaction() : Error writing to state")
-		// }
 
 		if err := utils.WriteLedger(moneyTransactionTrade2User, stub, MoneyTransactionKey, []string{moneyTransactionTrade2User.MoneyTransactionID, moneyTransactionTrade2User.Sender}); err != nil {
 			return shim.Error(fmt.Sprintf("%s", err))
 		}
 
-		var redemptionFeeTransaction = RedemptionFeeTransaction{transactionInfo.TransactionID + "RedemptionFee", transactionInfo.RedemptionFee,  transactionInfo.BuyerID,  tradingManagerID, time.Now().Local().Format("2006-01-02 15:04:05")}
-		// jsonTransaction, err = json.Marshal(redemptionFeeTransaction)
-		// if err != nil {
-		// 	fmt.Println(err.Error())
-		// 	return shim.Error("Error marshalling to JSON")
-		// }
+		var redemptionFeeTransaction = RedemptionFeeTransaction{transactionInfo.TransactionID + "RedemptionFeeFromUser", transactionInfo.RedemptionFee,  transactionInfo.BuyerID,  tradingManagerID, time.Now().Local().Format("2006-01-02 15:04:05")}
 
-		// err = stub.PutState(redemptionFeeTransaction.RedemptionFeeTransactionID, jsonTransaction)
-		// if err != nil {
-		// 	return shim.Error("createMoneyTransaction() : Error writing to state")
-		// }
 
-		if err := utils.WriteLedger(redemptionFeeTransaction, stub, RedemptionFeeTransactionKey, []string{redemptionFeeTransaction.RedemptionFeeTransactionID, redemptionFeeTransaction.Sender, redemptionFeeTransaction.Receiver}); err != nil {
+		if err := utils.WriteLedger(redemptionFeeTransaction, stub, RedemptionFeeTransactionKey, []string{redemptionFeeTransaction.Sender, redemptionFeeTransaction.RedemptionFeeTransactionID, redemptionFeeTransaction.Receiver}); err != nil {
+			return shim.Error(fmt.Sprintf("%s", err))
+		}
+
+		var serviceChargeTransaction = ServiceChargeTransaction{transactionInfo.TransactionID + "ServiceChargeFromWhale", transactionInfo.ServiceCharge, whaleAccount.AccountId,  tradingManagerID, time.Now().Local().Format("2006-01-02 15:04:05")}
+
+		if err := utils.WriteLedger(serviceChargeTransaction, stub, CommodityTransactionKey, []string{serviceChargeTransaction.Sender, serviceChargeTransaction.ServiceChargeTransactionID, serviceChargeTransaction.Receiver}); err != nil {
 			return shim.Error(fmt.Sprintf("%s", err))
 		}
 
@@ -1158,72 +1182,43 @@ func updateState(stub shim.ChaincodeStubInterface, args []string) pb.Response {
 			tradingManagerAccount.PlatinumShare -= transactionInfo.SellShare
 			whaleAccount.PlatinumShare += transactionInfo.SellShare
 		}
-		whaleAccount.Balance -= transactionInfo.SellAmount
+		whaleAccount.Balance -= (transactionInfo.SellAmount + transactionInfo.ServiceCharge)
 		buyerAccount.Balance += (transactionInfo.SellAmount - transactionInfo.RedemptionFee)
-		tradingManagerAccount.Balance += transactionInfo.RedemptionFee
+		tradingManagerAccount.Balance += (transactionInfo.RedemptionFee + transactionInfo.ServiceCharge)
 
 
 	}else {
 		var moneyTransactionTrade2Whale = MoneyTransaction{transactionInfo.TransactionID + "PurchaseMoneyTrade2Whale", transactionInfo.PurchaseAmount,  tradingManagerID, whaleID, time.Now().Local().Format("2006-01-02 15:04:05")}
-		// jsonTransaction, err := json.Marshal(moneyTransactionTrade2Whale)
-		// if err != nil {
-		// 	fmt.Println(err.Error())
-		// 	return shim.Error("Error marshalling to JSON")
-		// }
 
-		// err = stub.PutState(moneyTransactionTrade2Whale.MoneyTransactionID, jsonTransaction)
-		// if err != nil {
-		// 	return shim.Error("createMoneyTransaction() : Error writing to state")
-		// }
 
-		if err := utils.WriteLedger(moneyTransactionTrade2Whale, stub, MoneyTransactionKey, []string{moneyTransactionTrade2Whale.MoneyTransactionID, moneyTransactionTrade2Whale.Sender}); err != nil {
+		if err := utils.WriteLedger(moneyTransactionTrade2Whale, stub, MoneyTransactionKey, []string{moneyTransactionTrade2Whale.Receiver, moneyTransactionTrade2Whale.MoneyTransactionID, moneyTransactionTrade2Whale.Sender}); err != nil {
 			return shim.Error(fmt.Sprintf("%s", err))
 		}
 
 
 		var commodityTransactionWhale2Trade = CommodityTransaction{transactionInfo.TransactionID + "CommodityWhale2Trade", transactionInfo.CommodityType, transactionInfo.PurchaseShare, whaleID,  tradingManagerID, time.Now().Local().Format("2006-01-02 15:04:05")}
-		// jsonTransaction, err = json.Marshal(commodityTransactionWhale2Trade)
-		// if err != nil {
-		// 	fmt.Println(err.Error())
-		// 	return shim.Error("Error marshalling to JSON")
-		// }
+	
 
-		// err = stub.PutState(commodityTransactionWhale2Trade.CommodityTransactionID, jsonTransaction)
-		// if err != nil {
-		// 	return shim.Error("createMoneyTransaction() : Error writing to state")
-		// }
-
-		if err := utils.WriteLedger(commodityTransactionWhale2Trade, stub, CommodityTransactionKey, []string{commodityTransactionWhale2Trade.CommodityTransactionID, commodityTransactionWhale2Trade.Sender}); err != nil {
+		if err := utils.WriteLedger(commodityTransactionWhale2Trade, stub, CommodityTransactionKey, []string{commodityTransactionWhale2Trade.Sender, commodityTransactionWhale2Trade.CommodityTransactionID, commodityTransactionWhale2Trade.Receiver}); err != nil {
 			return shim.Error(fmt.Sprintf("%s", err))
 		}
 
 		var commodityTransactionTrade2User = CommodityTransaction{transactionInfo.TransactionID + "CommodityTrade2User", transactionInfo.CommodityType, transactionInfo.PurchaseShare,  tradingManagerID, transactionInfo.BuyerID, time.Now().Local().Format("2006-01-02 15:04:05")}
-		// jsonTransaction, err = json.Marshal(commodityTransactionTrade2User)
-		// if err != nil {
-		// 	fmt.Println(err.Error())
-		// 	return shim.Error("Error marshalling to JSON")
-		// }
 
-		// err = stub.PutState(commodityTransactionTrade2User.CommodityTransactionID, jsonTransaction)
-		// if err != nil {
-		// 	return shim.Error("createMoneyTransaction() : Error writing to state")
-		// }
-		if err := utils.WriteLedger(commodityTransactionTrade2User, stub, CommodityTransactionKey, []string{commodityTransactionTrade2User.CommodityTransactionID, commodityTransactionTrade2User.Sender}); err != nil {
+		if err := utils.WriteLedger(commodityTransactionTrade2User, stub, CommodityTransactionKey, []string{commodityTransactionTrade2User.Receiver, commodityTransactionTrade2User.CommodityTransactionID, commodityTransactionTrade2User.Sender}); err != nil {
 			return shim.Error(fmt.Sprintf("%s", err))
 		}
 
-		var serviceChargeTransaction = ServiceChargeTransaction{transactionInfo.TransactionID + "ServiceCharge", transactionInfo.ServiceCharge, transactionInfo.BuyerID,  tradingManagerID, time.Now().Local().Format("2006-01-02 15:04:05")}
-		// jsonTransaction, err = json.Marshal(serviceChargeTransaction)
-		// if err != nil {
-		// 	fmt.Println(err.Error())
-		// 	return shim.Error("Error marshalling to JSON")
-		// }
+		var serviceChargeTransaction = ServiceChargeTransaction{transactionInfo.TransactionID + "ServiceChargeFromUser", transactionInfo.ServiceCharge, transactionInfo.BuyerID,  tradingManagerID, time.Now().Local().Format("2006-01-02 15:04:05")}
 
-		// err = stub.PutState(serviceChargeTransaction.ServiceChargeTransactionID, jsonTransaction)
-		// if err != nil {
-		// 	return shim.Error("createMoneyTransaction() : Error writing to state")
-		// }
-		if err := utils.WriteLedger(serviceChargeTransaction, stub, CommodityTransactionKey, []string{serviceChargeTransaction.ServiceChargeTransactionID, serviceChargeTransaction.Sender, serviceChargeTransaction.Receiver}); err != nil {
+		if err := utils.WriteLedger(serviceChargeTransaction, stub, CommodityTransactionKey, []string{serviceChargeTransaction.Sender, serviceChargeTransaction.ServiceChargeTransactionID, serviceChargeTransaction.Receiver}); err != nil {
+			return shim.Error(fmt.Sprintf("%s", err))
+		}
+
+		var redemptionFeeTransaction = RedemptionFeeTransaction{transactionInfo.TransactionID + "RedemptionFeeFromWhale", transactionInfo.RedemptionFee,  whaleAccount.AccountId,  tradingManagerID, time.Now().Local().Format("2006-01-02 15:04:05")}
+
+
+		if err := utils.WriteLedger(redemptionFeeTransaction, stub, RedemptionFeeTransactionKey, []string{redemptionFeeTransaction.Sender, redemptionFeeTransaction.RedemptionFeeTransactionID, redemptionFeeTransaction.Receiver}); err != nil {
 			return shim.Error(fmt.Sprintf("%s", err))
 		}
 		
@@ -1243,8 +1238,8 @@ func updateState(stub shim.ChaincodeStubInterface, args []string) pb.Response {
 			buyerAccount.PlatinumShare += transactionInfo.PurchaseShare
 
 		}
-		whaleAccount.Balance += transactionInfo.PurchaseAmount
-		tradingManagerAccount.Balance -= transactionInfo.PurchaseAmount
+		whaleAccount.Balance += (transactionInfo.PurchaseAmount - transactionInfo.RedemptionFee)
+		tradingManagerAccount.Balance -= (transactionInfo.PurchaseAmount - transactionInfo.RedemptionFee)
 
 	}
 
@@ -1275,14 +1270,14 @@ func updateState(stub shim.ChaincodeStubInterface, args []string) pb.Response {
 }
 
 
-func (transactionInfo *TransactionInfo) queryTransactionInfobyID(stub shim.ChaincodeStubInterface, ID string) error {
-	valAsbytes, err := utils.GetStateByPartialCompositeKeys(stub, TransactionKey, []string{ID})
+func (transactionInfo *TransactionInfo) queryTransactionInfobyID(stub shim.ChaincodeStubInterface, accountID string, ID string) error {
+	valAsbytes, err := utils.GetStateByPartialCompositeKeys2(stub, TransactionKey, []string{accountID, ID})
 
 	if err != nil {
 		fmt.Println(err.Error())
 		return err
 	} else if valAsbytes == nil {
-		return errors.New("Transaction does not exist")
+		return errors.New("Transaction does not exist, queryTransactionInfobyID")
 	}
 
 
@@ -1470,9 +1465,76 @@ func querySuggestedPortfolioList(stub shim.ChaincodeStubInterface, args []string
 	return shim.Success(transactionListByte)
 }
 
+func queryCommodityTypeList(stub shim.ChaincodeStubInterface, args []string) pb.Response{
+	fmt.Println("running the function queryCommodityTypeList()")
+	// var tempCommodityList []Commodity
+	var err error
+
+
+	commodityListByte, err := json.Marshal(commodityList)
+	if err != nil {
+		return shim.Error(fmt.Sprintf("commodityList-序列化出错: %s", err))
+	}
+	return shim.Success(commodityListByte)
+}
 
 
 
+
+func set(stub shim.ChaincodeStubInterface, args []string)pb.Response {
+	stus := []Student{
+		{"lisi", 20, 99},
+		{"lisi",20,98},
+		{"lisi",21,100},
+	}
+	for i, _ := range(stus) {
+		stu := stus[i]
+
+		key, err := stub.CreateCompositeKey(stu.Name, []string{strconv.Itoa(stu.Age), strconv.Itoa(stu.Score)})
+		if err != nil {
+			fmt.Println(err)
+			return shim.Error(err.Error())
+		}
+
+		bytes, err := json.Marshal(stu)
+		if err != nil {
+			fmt.Println(err)
+			return shim.Error(err.Error())
+		}
+		stub.PutState(key, bytes)
+
+	}
+	return shim.Success(nil)
+}
+
+
+func  get(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+	var stuList []Student
+	rs, err := stub.GetStateByPartialCompositeKey("lisi", args)
+	if err != nil{
+		fmt.Println(err)
+		return  shim.Error(err.Error())
+	}
+	defer rs.Close()
+
+	for rs.HasNext(){
+		responseRange, err := rs.Next()
+
+		if err != nil{
+			fmt.Println(err)
+		}
+		stu := new(Student)
+		err = json.Unmarshal(responseRange.Value, stu)
+		if err != nil{
+			fmt.Println(err)
+		}
+		stuList = append(stuList, *stu)
+		fmt.Println(responseRange.Key, stu)
+	}
+	bytes, err := json.Marshal(stuList)
+
+	return shim.Success(bytes)
+}
 
 
 func main() {
@@ -1482,3 +1544,4 @@ func main() {
 		fmt.Printf("Error starting Heroes Service chaincode: %s", err)
 	}
 }
+

@@ -1,58 +1,63 @@
 <template>
   <div class="container">
-    <el-alert
-      type="success"
-    >
-      <p>账户ID: {{ accountId }}</p>
-      <p>用户名: {{ userName }}</p>
-      <p>余额: ￥{{ balance }} 元</p>
-    </el-alert>
-    <div v-if="donatingList.length==0" style="text-align: center;">
-      <el-alert
-        title="查询不到数据"
-        type="warning"
-      />
+    <user-info-bar />
+    <div v-if="!loading" class="cards-container">
+      <el-card v-for="(val,index) in transactionInfoList" :key="index" class="card-item">
+        <div class="item">
+          <span>{{ val.createTime }}</span>
+        </div>
+        <div class="item">
+          <span>Commodity: {{ val.commodityType.commodityName }}</span>
+        </div>
+        <div class="item">
+          <span>Commodity Net Worth: {{ val.commodityType.commodityNetWorth }}</span>
+        </div>
+        <div v-if="val.purchaseShare !== 0">
+          <div class="item">
+            <span>Purchase Share: {{ val.purchaseShare }}</span>
+          </div>
+          <div class="item">
+            <span>Purchase Amount: {{ val.purchaseAmount }}</span>
+          </div>
+        </div>
+        <div v-if="val.sellShare !== 0">
+          <div class="item">
+            <span>Sell Share: {{ val.sellShare }}</span>
+          </div>
+          <div class="item">
+            <span>Sell Amount: {{ val.sellAmount }}</span>
+          </div>
+        </div>
+        <div class="item">
+          <span>Redemption Fee: {{ val.redemptionFee }}</span>
+        </div>
+        <div class="item">
+          <span>Service Charge: {{ val.serviceCharge }}</span>
+        </div>
+        <div class="item">
+          <span>State: </span>
+          <el-tag v-if="val.transactionStateType.transactionStateID === 1">{{ val.transactionStateType.transactionStateName }}</el-tag>
+          <el-tag v-if="val.transactionStateType.transactionStateID === 2" type="success">{{ val.transactionStateType.transactionStateName }}</el-tag>
+        </div>
+      </el-card>
     </div>
-    <el-row v-loading="loading" :gutter="20">
-      <el-col v-for="(val,index) in donatingList" :key="index" :span="6" :offset="1">
-        <el-card class="d-all-card">
-          <div slot="header" class="clearfix">
-            <span>{{ val.donatingStatus }}</span>
-            <el-button v-if="roles[0] !== 'admin'&&val.grantee===accountId&&val.donatingStatus==='捐赠中'" style="float: right; padding: 3px 6px" type="text" @click="updateDonating(val,'done')">确认接收</el-button>
-            <el-button v-if="roles[0] !== 'admin'&&(val.donor===accountId||val.grantee===accountId)&&val.donatingStatus==='捐赠中'" style="float: right; padding: 3px 0" type="text" @click="updateDonating(val,'cancelled')">取消</el-button>
-          </div>
-          <div class="item">
-            <el-tag>房产ID: </el-tag>
-            <span>{{ val.objectOfDonating }}</span>
-          </div>
-          <div class="item">
-            <el-tag type="success">捐赠者ID: </el-tag>
-            <span>{{ val.donor }}</span>
-          </div>
-          <div class="item">
-            <el-tag type="danger">受赠人ID: </el-tag>
-            <span>{{ val.grantee }}</span>
-          </div>
-          <div class="item">
-            <el-tag type="warning">创建时间: </el-tag>
-            <span>{{ val.createTime }}</span>
-          </div>
-        </el-card>
-      </el-col>
-    </el-row>
   </div>
 </template>
 
 <script>
 import { mapGetters } from 'vuex'
-import { queryDonatingList, updateDonating } from '@/api/donating'
+import { queryTransactionInfoList } from '@/api/transaction'
+import UserInfoBar from '@/components/UserInfoBar'
 
 export default {
-  name: 'AllDonating',
+  name: 'Information',
+  components: {
+    UserInfoBar
+  },
   data() {
     return {
       loading: true,
-      donatingList: []
+      transactionInfoList: []
     }
   },
   computed: {
@@ -64,9 +69,11 @@ export default {
     ])
   },
   created() {
-    queryDonatingList().then(response => {
+    queryTransactionInfoList({
+      accountID: this.accountId
+    }).then(response => {
       if (response !== null) {
-        this.donatingList = response
+        this.transactionInfoList = response
       }
       this.loading = false
     }).catch(_ => {
@@ -74,65 +81,19 @@ export default {
     })
   },
   methods: {
-    updateDonating(item, type) {
-      let tip = ''
-      if (type === 'done') {
-        tip = '确认接受捐赠'
-      } else {
-        tip = '取消捐赠操作'
-      }
-      this.$confirm('是否要' + tip + '?', '提示', {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'success'
-      }).then(() => {
-        this.loading = true
-        updateDonating({
-          donor: item.donor,
-          grantee: item.grantee,
-          objectOfDonating: item.objectOfDonating,
-          status: type
-        }).then(response => {
-          this.loading = false
-          if (response !== null) {
-            this.$message({
-              type: 'success',
-              message: tip + '操作成功!'
-            })
-          } else {
-            this.$message({
-              type: 'error',
-              message: tip + '操作失败!'
-            })
-          }
-          setTimeout(() => {
-            window.location.reload()
-          }, 1000)
-        }).catch(_ => {
-          this.loading = false
-        })
-      }).catch(() => {
-        this.loading = false
-        this.$message({
-          type: 'info',
-          message: '已取消' + tip
-        })
-      })
-    }
+
   }
 }
 
 </script>
 
 <style>
+
   .container{
     width: 100%;
     text-align: center;
     min-height: 100%;
     overflow: hidden;
-  }
-  .tag {
-    float: left;
   }
 
   .item {
@@ -141,17 +102,15 @@ export default {
     color: #999;
   }
 
-  .clearfix:before,
-  .clearfix:after {
-    display: table;
-  }
-  .clearfix:after {
-    clear: both
+  .cards-container {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
   }
 
-  .d-all-card {
-    width: 280px;
-    height: 300px;
+  .card-item {
+    width: 350px;
+    padding: 10px auto;
     margin: 18px;
   }
 </style>

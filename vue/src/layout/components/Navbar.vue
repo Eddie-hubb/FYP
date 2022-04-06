@@ -12,19 +12,16 @@
         </div>
         <el-dropdown-menu slot="dropdown" class="user-dropdown">
           <el-dropdown-item>
-            账户ID: {{ accountId }}
+            Account ID: {{ accountId }}
           </el-dropdown-item>
           <el-dropdown-item>
-            用户名: {{ userName }}
+            Username: {{ userName }}
           </el-dropdown-item>
           <el-dropdown-item>
-            余额: ￥{{ balance }} 元
+            Balance: ￥{{ balance }}
           </el-dropdown-item>
-          <a target="_blank" href="https://github.com/togettoyou/blockchain-real-estate">
-            <el-dropdown-item>项目地址</el-dropdown-item>
-          </a>
           <el-dropdown-item divided @click.native="logout">
-            <span style="display:block;">切换账户</span>
+            <span style="display:block;">Switch account</span>
           </el-dropdown-item>
         </el-dropdown-menu>
       </el-dropdown>

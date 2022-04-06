@@ -1,68 +1,82 @@
 <template>
   <div class="container">
-    <el-alert
-      type="success"
-    >
-      <p>账户ID: {{ accountId }}</p>
-      <p>用户名: {{ userName }}</p>
-      <p>余额: ￥{{ balance }} 元</p>
-    </el-alert>
-    <div v-if="sellingList.length==0" style="text-align: center;">
-      <el-alert
-        title="查询不到数据"
-        type="warning"
-      />
+    <user-info-bar />
+    <div class="card-container">
+      <el-card v-for="(val,index) in portfolioList" :key="index" class="all-card">
+        <div slot="header" class="clearfix">
+          <span style="font-size: 12px">{{ val.portfolioID }}</span>
+        </div>
+        <div class="item">
+          <span>{{ val.createTime }}</span>
+        </div>
+        <div class="item">
+          <span>state: </span>
+          <el-tag v-if="val.portfolioState.PortfolioStateTypeId == 2" type="error">{{ val.portfolioState.PortfolioStateTypeName }}</el-tag>
+          <el-tag v-if="val.portfolioState.PortfolioStateTypeId == 1" type="success">{{ val.portfolioState.PortfolioStateTypeName }}</el-tag>
+        </div>
+        <div class="item">
+          <span>Gold: {{ val.goldShare }} </span>
+        </div>
+        <div class="item">
+          <span>Sliver: {{ val.silverShare }} </span>
+        </div>
+        <div class="item">
+          <span>Platinum: {{ val.platinumShare }} </span>
+        </div>
+
+        <el-button v-if="val.portfolioState.PortfolioStateTypeId == 1" type="primary" round @click="adjustPortfolio(val)">Adjust Portfolio</el-button>
+      </el-card>
     </div>
-    <el-row v-loading="loading" :gutter="20">
-      <el-col v-for="(val,index) in sellingList" :key="index" :span="6" :offset="1">
-        <el-card class="all-card">
-          <div slot="header" class="clearfix">
-            <span>{{ val.sellingStatus }}</span>
-            <el-button v-if="roles[0] !== 'admin'&&(val.seller===accountId||val.buyer===accountId)&&val.sellingStatus!=='完成'&&val.sellingStatus!=='已过期'&&val.sellingStatus!=='已取消'" style="float: right; padding: 3px 0" type="text" @click="updateSelling(val,'cancelled')">取消</el-button>
-            <el-button v-if="roles[0] !== 'admin'&&val.seller===accountId&&val.sellingStatus==='交付中'" style="float: right; padding: 3px 8px" type="text" @click="updateSelling(val,'done')">确认收款</el-button>
-            <el-button v-if="roles[0] !== 'admin'&&val.sellingStatus==='销售中'&&val.seller!==accountId" style="float: right; padding: 3px 0" type="text" @click="createSellingByBuy(val)">购买</el-button>
-          </div>
-          <div class="item">
-            <el-tag>房产ID: </el-tag>
-            <span>{{ val.objectOfSale }}</span>
-          </div>
-          <div class="item">
-            <el-tag type="success">销售者ID: </el-tag>
-            <span>{{ val.seller }}</span>
-          </div>
-          <div class="item">
-            <el-tag type="danger">价格: </el-tag>
-            <span>￥{{ val.price }} 元</span>
-          </div>
-          <div class="item">
-            <el-tag type="warning">有效期: </el-tag>
-            <span>{{ val.salePeriod }} 天</span>
-          </div>
-          <div class="item">
-            <el-tag type="info">创建时间: </el-tag>
-            <span>{{ val.createTime }}</span>
-          </div>
-          <div class="item">
-            <el-tag>购买者ID: </el-tag>
-            <span v-if="val.buyer===''">虚位以待</span>
-            <span>{{ val.buyer }}</span>
-          </div>
-        </el-card>
-      </el-col>
-    </el-row>
+
+    <!-- dialog -->
+    <el-dialog v-loading="adjustLoading" title="Adjust PortfolioList" :visible.sync="isAdjust">
+      <el-form :model="adjustForm" label-width="100px" :label-position="right">
+        <el-form-item label="gold">
+          <el-input-number v-model="adjustForm.goldShare" :min="0" :step="50" />
+        </el-form-item>
+        <el-form-item label="silver">
+          <el-input-number v-model="adjustForm.silverShare" :min="0" :step="50" />
+        </el-form-item>
+        <el-form-item label="platinum">
+          <el-input-number v-model="adjustForm.platinumShare" :min="0" :step="50" />
+        </el-form-item>
+
+        <el-form-item>
+          <el-button type="primary" @click="submitForm('adjustForm')">
+            submit
+          </el-button>
+        </el-form-item>
+      </el-form>
+    </el-dialog>
   </div>
+
 </template>
 
 <script>
 import { mapGetters } from 'vuex'
-import { querySellingList, createSellingByBuy, updateSelling, queryPortfolioList } from '@/api/selling'
+import { queryPortfolioList, adjustPortfolio } from '@/api/portfolio'
+import UserInfoBar from '@/components/UserInfoBar'
 
+// import { mockPortfolioList } from '@/utils/mock'
 export default {
   name: 'AllSelling',
+  components: {
+    UserInfoBar
+  },
   data() {
     return {
       loading: true,
-      sellingList: []
+      adjustLoading: false,
+      portfolioList: [],
+      adjustForm: {
+        accountID: '',
+        createTime: '',
+        goldShare: 0,
+        platinumShare: 0,
+        portfolioID: '',
+        silverShare: 0
+      },
+      isAdjust: false
     }
   },
   computed: {
@@ -74,102 +88,72 @@ export default {
     ])
   },
   created() {
-    querySellingList().then(response => {
-      if (response !== null) {
-        this.sellingList = response
-      }
-      this.loading = false
-    }).catch(_ => {
-      this.loading = false
-    })
-
-    queryPortfolioList().then(res => {
-      console.log(res);
-    })
+    this.getList()
   },
   methods: {
-    createSellingByBuy(item) {
-      this.$confirm('是否立即购买?', '提示', {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'success'
-      }).then(() => {
-        this.loading = true
-        createSellingByBuy({
-          buyer: this.accountId,
-          objectOfSale: item.objectOfSale,
-          seller: item.seller
-        }).then(response => {
-          this.loading = false
-          if (response !== null) {
-            this.$message({
-              type: 'success',
-              message: '购买成功!'
-            })
-          } else {
-            this.$message({
-              type: 'error',
-              message: '购买失败!'
-            })
-          }
-          setTimeout(() => {
-            window.location.reload()
-          }, 1000)
-        }).catch(_ => {
-          this.loading = false
-        })
-      }).catch(() => {
+    getList() {
+      this.loading = true
+      queryPortfolioList({
+        accountID: this.accountId
+      }).then(res => {
+        console.log(res)
+        if (res !== null) {
+          this.portfolioList = res
+        }
         this.loading = false
-        this.$message({
-          type: 'info',
-          message: '已取消购买'
-        })
       })
     },
-    updateSelling(item, type) {
-      let tip = ''
-      if (type === 'done') {
-        tip = '确认收款'
+    adjustPortfolio(val) {
+      this.adjustForm = val
+      this.isAdjust = true
+    },
+    submitForm(a) {
+      if (this.adjustForm.goldShare !== 0 ||
+        this.adjustForm.silverShare !== 0 ||
+        this.adjustForm.platinumShare !== 0) {
+        this.$confirm('Adjuct portfolio now?', 'Tip', {
+          confirmButtonText: 'confirm',
+          cancelButtonText: 'cancel',
+          type: 'success'
+        }).then(() => {
+          this.adjustLoading = true
+          adjustPortfolio({
+            accountID: this.accountId,
+            previousPortfolioID: this.adjustForm.portfolioID,
+            goldShare: this.adjustForm.goldShare.toString(),
+            silverShare: this.adjustForm.silverShare.toString(),
+            platinumShare: this.adjustForm.platinumShare.toString()
+          }).then(response => {
+            this.loading = false
+            if (response !== null) {
+              this.$message({
+                type: 'success',
+                message: 'Success!'
+              })
+              this.isAdjust = false
+              this.getList()
+            } else {
+              this.$message({
+                type: 'error',
+                message: 'Fail!'
+              })
+            }
+          }).catch(_ => {
+            this.loading = false
+          })
+        }).catch(() => {
+          this.loading = false
+          this.$message({
+            type: 'info',
+            message: 'Canceled'
+          })
+        })
       } else {
-        tip = '取消操作'
-      }
-      this.$confirm('是否要' + tip + '?', '提示', {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'success'
-      }).then(() => {
-        this.loading = true
-        updateSelling({
-          buyer: item.buyer,
-          objectOfSale: item.objectOfSale,
-          seller: item.seller,
-          status: type
-        }).then(response => {
-          this.loading = false
-          if (response !== null) {
-            this.$message({
-              type: 'success',
-              message: tip + '操作成功!'
-            })
-          } else {
-            this.$message({
-              type: 'error',
-              message: tip + '操作失败!'
-            })
-          }
-          setTimeout(() => {
-            window.location.reload()
-          }, 1000)
-        }).catch(_ => {
-          this.loading = false
-        })
-      }).catch(() => {
-        this.loading = false
         this.$message({
-          type: 'info',
-          message: '已取消' + tip
+          type: 'error',
+          message: 'Empty Portfolio!'
         })
-      })
+      }
     }
   }
 }
@@ -202,8 +186,15 @@ export default {
   }
 
   .all-card {
-    width: 280px;
-    height: 380px;
+    width: 450px;
+    padding: 10px auto;
     margin: 18px;
+  }
+
+  .card-container {
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
   }
 </style>

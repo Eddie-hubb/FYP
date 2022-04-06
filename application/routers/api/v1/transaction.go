@@ -18,52 +18,60 @@ import (
 // 	Account []AccountIdBody `json:"account"`
 // }
 
-type PortfolioIdBody struct {
+
+
+// TODO 建议分开写接口
+// query by portfolioId | query by accountId
+// bug: 当参数不符合时不返回任何数据
+type PortfolioInfoRequestBody struct {
+	AccountId string `json:"accountId"`
 	PortfolioId string `json:"portfolioId"`
 }
 
-type PortfolioInfoRequestBody struct {
-	Portfolio []PortfolioIdBody `json:"portfolio"`
-}
+// type TransactionIdBody struct {
+// }
 
-type TransactionIdBody struct {
+type TransactionRequestBody struct {
+	AccountId string `json:"accountId"`
 	TransactionId string `json:"transactionId"`
 }
 
-type TransactionRequestBody struct {
-	Transaction []TransactionIdBody `json:"transaction"`
-}
+// type MoneyTransactionIdBody struct {
+// 	MoneyTransactionId string `json:"transactionId"`
+// }
 
-type MoneyTransactionIdBody struct {
+type MoneyTransactionRequestBody struct {
+	AccountId string `json:"accountId"`
 	MoneyTransactionId string `json:"transactionId"`
 }
 
-type MoneyTransactionRequestBody struct {
-	MoneyTransaction []MoneyTransactionIdBody `json:"moneyTransaction"`
-}
-
-type CommodityTransactionIdBody struct {
-	CommodityTransactionId string `json:"commodityTransactionId"`
-}
+// type CommodityTransactionIdBody struct {
+// 	CommodityTransactionId string `json:"commodityTransactionId"`
+// }
 
 type CommodityTransactionRequestBody struct {
-	CommodityTransaction []CommodityTransactionIdBody `json:"commodityTransaction"`
+	AccountId string `json:"accountId"`
+	CommodityTransactionId string `json:"commodityTransactionId"`
+
 }
 
-type ServiceChargeTransactionIdBody struct {
-	ServiceChargeTransactionId string `json:"serviceChargeTransactionId"`
-}
+// type ServiceChargeTransactionIdBody struct {
+// 	ServiceChargeTransactionId string `json:"serviceChargeTransactionId"`
+// }
 
 type ServiceChargeTransactionRequestBody struct {
-	ServiceChargeTransaction []ServiceChargeTransactionIdBody `json:"serviceChargeTransaction"`
+	AccountId string `json:"accountId"`
+	ServiceChargeTransactionId string `json:"serviceChargeTransactionId"`
+
 }
 
-type RedemptionFeeTransactionIdBody struct {
-	RedemptionFeeTransactionId string `json:"redemptionFeeTransactionId"`
-}
+// type RedemptionFeeTransactionIdBody struct {
+// 	RedemptionFeeTransactionId string `json:"redemptionFeeTransactionId"`
+// }
 
 type RedemptionFeeTransactionRequestBody struct {
-	RedemptionFeeTransaction []RedemptionFeeTransactionIdBody `json:"redemptionFeeTransaction"`
+	AccountId string `json:"accountId"`
+	RedemptionFeeTransactionId string `json:"redemptionFeeTransactionId"`
 }
 
 type PortfolioRequestBody struct {
@@ -82,6 +90,7 @@ type TransactionInfoRequestBody struct {
 }
 
 type TransactionStateRequestBody struct {
+	AccountId string `json:"accountId"`
 	TransactionID	string	`json:"transactionID"`
 	NewState	string `json:"newState"`	
 }
@@ -107,6 +116,13 @@ type AdjustedPortfolioRequestBody struct {
 	PlatinumShare	string	`json:"platinumShare"`
 }
 
+// type AccountIdBody struct {
+// 	AccountId string `json:"accountId"`
+// }
+
+// type AccountRequestBody struct {
+// 	Account []AccountIdBody `json:"account"`
+// }
 
 
 
@@ -154,9 +170,13 @@ func QueryPortfolioList(c *gin.Context) {
 		return
 	}
 	var bodyBytes [][]byte
-	for _, val := range body.Portfolio {
-		bodyBytes = append(bodyBytes, []byte(val.PortfolioId))
+	if body.AccountId != "" {
+		bodyBytes = append(bodyBytes, []byte(body.AccountId))
 	}
+	if body.PortfolioId != "" {
+		bodyBytes = append(bodyBytes, []byte(body.PortfolioId))
+	}
+	
 	//调用智能合约
 	resp, err := bc.ChannelQuery("queryPortfolioList", bodyBytes)
 	if err != nil {
@@ -182,8 +202,11 @@ func QueryTransactionInfoList(c *gin.Context) {
 		return
 	}
 	var bodyBytes [][]byte
-	for _, val := range body.Transaction {
-		bodyBytes = append(bodyBytes, []byte(val.TransactionId))
+	if body.AccountId != "" {
+		bodyBytes = append(bodyBytes, []byte(body.AccountId))
+	}	
+	if body.TransactionId != "" {
+		bodyBytes = append(bodyBytes, []byte(body.TransactionId))
 	}
 	//调用智能合约
 	resp, err := bc.ChannelQuery("queryTransactionInfoList", bodyBytes)
@@ -210,8 +233,11 @@ func QueryMoneyTransactionList(c *gin.Context) {
 		return
 	}
 	var bodyBytes [][]byte
-	for _, val := range body.MoneyTransaction {
-		bodyBytes = append(bodyBytes, []byte(val.MoneyTransactionId))
+	if body.AccountId != "" {
+		bodyBytes = append(bodyBytes, []byte(body.AccountId))
+	}	
+	if body.MoneyTransactionId != "" {
+		bodyBytes = append(bodyBytes, []byte(body.MoneyTransactionId))
 	}
 	//调用智能合约
 	resp, err := bc.ChannelQuery("queryMoneyTransactionList", bodyBytes)
@@ -237,8 +263,11 @@ func QueryCommodityTransactionList(c *gin.Context) {
 		return
 	}
 	var bodyBytes [][]byte
-	for _, val := range body.CommodityTransaction {
-		bodyBytes = append(bodyBytes, []byte(val.CommodityTransactionId))
+	if body.AccountId != "" {
+		bodyBytes = append(bodyBytes, []byte(body.AccountId))
+	}	
+	if body.CommodityTransactionId != "" {
+		bodyBytes = append(bodyBytes, []byte(body.CommodityTransactionId))
 	}
 	//调用智能合约
 	resp, err := bc.ChannelQuery("queryCommodityTransactionList", bodyBytes)
@@ -264,8 +293,11 @@ func QueryServiceChargeTransactionList(c *gin.Context) {
 		return
 	}
 	var bodyBytes [][]byte
-	for _, val := range body.ServiceChargeTransaction {
-		bodyBytes = append(bodyBytes, []byte(val.ServiceChargeTransactionId))
+	if body.AccountId != "" {
+		bodyBytes = append(bodyBytes, []byte(body.AccountId))
+	}	
+	if body.ServiceChargeTransactionId != "" {
+		bodyBytes = append(bodyBytes, []byte(body.ServiceChargeTransactionId))
 	}
 	//调用智能合约
 	resp, err := bc.ChannelQuery("queryServiceChargeTransactionList", bodyBytes)
@@ -291,8 +323,11 @@ func QueryRedemptionFeeTransactionList(c *gin.Context) {
 		return
 	}
 	var bodyBytes [][]byte
-	for _, val := range body.RedemptionFeeTransaction {
-		bodyBytes = append(bodyBytes, []byte(val.RedemptionFeeTransactionId))
+	if body.AccountId != "" {
+		bodyBytes = append(bodyBytes, []byte(body.AccountId))
+	}	
+	if body.RedemptionFeeTransactionId != "" {
+		bodyBytes = append(bodyBytes, []byte(body.RedemptionFeeTransactionId))
 	}
 	//调用智能合约
 	resp, err := bc.ChannelQuery("queryRedemptionFeeTransactionList", bodyBytes)
@@ -434,6 +469,7 @@ func UpdateState(c *gin.Context) {
 	// 	return
 	// }
 	var bodyBytes [][]byte
+	bodyBytes = append(bodyBytes, []byte(body.AccountId))
 	bodyBytes = append(bodyBytes, []byte(body.TransactionID))
 	bodyBytes = append(bodyBytes, []byte(body.NewState))
 
@@ -522,4 +558,20 @@ func AdjustNetWorth(c *gin.Context) {
 		return
 	}
 	appG.Response(http.StatusOK, "成功", data)
+}
+
+func QueryCommodityTypeList(c *gin.Context) {
+	appG := app.Gin{C: c}
+	var bodyBytes [][]byte
+	resp, err := bc.ChannelExecute("queryCommodityTypeList", bodyBytes)
+	if err != nil {
+		appG.Response(http.StatusInternalServerError, "失败1", err.Error())
+		return
+	}
+	var data []map[string]interface{}
+	if err = json.Unmarshal(bytes.NewBuffer(resp.Payload).Bytes(), &data); err != nil {
+		appG.Response(http.StatusInternalServerError, "失败2", err.Error())
+		return
+	}
+	appG.Response(http.StatusOK, "成功3", data)
 }

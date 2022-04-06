@@ -45,13 +45,13 @@ export const constantRoutes = [{
 {
   path: '/',
   component: Layout,
-  redirect: '/realestate',
+  redirect: '/information',
   children: [{
-    path: 'realestate',
-    name: 'Realestate',
+    path: 'information',
+    name: 'Information',
     component: () => import('@/views/realestate/list/index'),
     meta: {
-      title: '房产信息',
+      title: 'Information',
       icon: 'realestate'
     }
   }]
@@ -64,13 +64,13 @@ export const constantRoutes = [{
  */
 export const asyncRoutes = [
   {
-    path: '/selling',
+    path: '/portfolio',
     component: Layout,
-    redirect: '/selling/all',
+    redirect: '/portfolio/all',
     name: 'Selling',
     alwaysShow: true,
     meta: {
-      title: '销售',
+      title: 'Portfolio',
       icon: 'selling'
     },
     children: [{
@@ -78,66 +78,72 @@ export const asyncRoutes = [
       name: 'SellingAll',
       component: () => import('@/views/selling/all/index'),
       meta: {
-        title: '所有销售',
+        title: 'All Portfolio',
         icon: 'sellingAll'
       }
     },
     {
-      path: 'me',
-      name: 'SellingMe',
-      component: () => import('@/views/selling/me/index'),
-      meta: {
-        roles: ['editor'],
-        title: '我发起的',
-        icon: 'sellingMe'
-      }
-    }, {
-      path: 'buy',
+      path: 'create',
       name: 'SellingBuy',
       component: () => import('@/views/selling/buy/index'),
       meta: {
-        roles: ['editor'],
-        title: '我购买的',
+        title: 'Create Portfolio',
         icon: 'sellingBuy'
       }
     }
     ]
   },
   {
-    path: '/donating',
+    path: '/transaction',
     component: Layout,
-    redirect: '/donating/all',
+    redirect: '/transaction/information',
     name: 'Donating',
     alwaysShow: true,
     meta: {
-      title: '捐赠',
+      title: 'Transaction',
       icon: 'donating'
     },
     children: [{
-      path: 'all',
-      name: 'DonatingAll',
+      path: 'information',
+      name: 'Information',
       component: () => import('@/views/donating/all/index'),
       meta: {
-        title: '所有捐赠',
+        title: 'Transaction Information',
         icon: 'donatingAll'
       }
     },
     {
-      path: 'donor',
-      name: 'DonatingDonor',
+      path: 'money',
+      name: 'Money',
       component: () => import('@/views/donating/donor/index'),
       meta: {
-        roles: ['editor'],
-        title: '我发起的捐赠',
+        title: 'Money',
         icon: 'donatingDonor'
       }
     }, {
-      path: 'grantee',
-      name: 'DonatingGrantee',
+      path: 'commodity',
+      name: 'Commodity',
       component: () => import('@/views/donating/grantee/index'),
       meta: {
-        roles: ['editor'],
-        title: '我收到的受赠',
+        title: 'Commodity',
+        icon: 'donatingGrantee'
+      }
+    },
+    {
+      path: 'service',
+      name: 'ServiceCharge',
+      component: () => import('@/views/donating/service/index'),
+      meta: {
+        title: 'Service Charge',
+        icon: 'donatingGrantee'
+      }
+    },
+    {
+      path: 'redemption',
+      name: 'RedemptionFee',
+      component: () => import('@/views/donating/redemption/index'),
+      meta: {
+        title: 'Redemption Fee',
         icon: 'donatingGrantee'
       }
     }
