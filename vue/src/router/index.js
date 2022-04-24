@@ -45,13 +45,13 @@ export const constantRoutes = [{
 {
   path: '/',
   component: Layout,
-  redirect: '/information',
+  redirect: '/machine-learning',
   children: [{
-    path: 'information',
-    name: 'Information',
-    component: () => import('@/views/realestate/list/index'),
+    path: 'machine-learning',
+    name: 'Machine Learning',
+    component: () => import('@/views/ml/index'),
     meta: {
-      title: 'Information',
+      title: 'Machine Learning',
       icon: 'realestate'
     }
   }]
@@ -165,7 +165,6 @@ export const asyncRoutes = [
       }
     }]
   },
-
   // 404 page must be placed at the end !!!
   {
     path: '*',

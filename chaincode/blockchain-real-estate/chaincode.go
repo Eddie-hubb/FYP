@@ -950,7 +950,7 @@ func adjustPortfolio(stub shim.ChaincodeStubInterface, args []string) pb.Respons
 		platinumString = append(platinumString, fmt.Sprintf("%f", portfolioInfo.PlatinumShare - previousPortfolio.PlatinumShare))//purchase share
 		platinumString = append(platinumString, "0")//selling share
 		createTransactionInfoforPortfolio(stub, platinumString)
-	}else if(portfolioInfo.PlatinumShare - previousPortfolio.SilverShare < 0){
+	}else if(portfolioInfo.PlatinumShare - previousPortfolio.PlatinumShare < 0){
 		var platinumString []string
 		platinumString = append(platinumString, portfolioInfoID)//portfolio ID
 		platinumString = append(platinumString, portfolioInfoID + "PlatinumTransaction")// transaction ID
@@ -1096,166 +1096,166 @@ func updateState(stub shim.ChaincodeStubInterface, args []string) pb.Response {
 		return shim.Error(fmt.Sprintf("%s", err))
 	}
 
-
-	var whaleID string
-	if(transactionInfo.CommodityType.CommodityID == 1){
-		whaleID = goldWhaleID
-	}else if(transactionInfo.CommodityType.CommodityID == 2){
-		whaleID = silverWhaleID
-	}else{
-		whaleID = platinumWhaleID
-	}
-
-	var whaleAccount Account
-	err = whaleAccount.getAccount(stub, whaleID)
-
-
-	
-	var buyerAccount Account
-	err = buyerAccount.getAccount(stub, transactionInfo.BuyerID)
-
-	var tradingManagerAccount Account
-	err = tradingManagerAccount.getAccount(stub,tradingManagerID)
-
-	// var goldWhale Account
-	// err = goldWhale.getAccount(stub, whaleID)
-	
-	// var silverWhale Account
-	// err = silverWhale.getAccount(stub, whaleID)
-
-	// var platinumWhale Account
-	// err = platinumWhale.getAccount(stub, whaleID)
-
-
-
-	if(transactionInfo.PurchaseShare == 0){		
-
-		var commodityTransactionTrade2Whale = CommodityTransaction{transactionInfo.TransactionID + "PurchaseCommodityTrade2Whale", transactionInfo.CommodityType, transactionInfo.SellShare,  tradingManagerID, whaleID, time.Now().Local().Format("2006-01-02 15:04:05")}
-
-
-		if err := utils.WriteLedger(commodityTransactionTrade2Whale, stub, CommodityTransactionKey, []string{commodityTransactionTrade2Whale.Receiver, commodityTransactionTrade2Whale.CommodityTransactionID, commodityTransactionTrade2Whale.Sender}); err != nil {
-			return shim.Error(fmt.Sprintf("%s", err))
-		}
-
-		
-
-		var moneyTransactionWhale2Trade = MoneyTransaction{transactionInfo.TransactionID + "RedemptionMoneyWhale2Trade", transactionInfo.SellAmount, whaleID,  tradingManagerID, time.Now().Local().Format("2006-01-02 15:04:05")}
-
-		
-		if err := utils.WriteLedger(moneyTransactionWhale2Trade, stub, MoneyTransactionKey, []string{moneyTransactionWhale2Trade.Sender, moneyTransactionWhale2Trade.MoneyTransactionID, moneyTransactionWhale2Trade.Receiver}); err != nil {
-			return shim.Error(fmt.Sprintf("%s", err))
-		}
-
-		if err != nil {
-			return shim.Error("createMoneyTransaction() : Error writing to state")
-		}
-
-		var moneyTransactionTrade2User = MoneyTransaction{transactionInfo.TransactionID + "RedemptionMoneyTrade2User", transactionInfo.SellAmount,  tradingManagerID, transactionInfo.BuyerID, time.Now().Local().Format("2006-01-02 15:04:05")}
-
-
-		if err := utils.WriteLedger(moneyTransactionTrade2User, stub, MoneyTransactionKey, []string{moneyTransactionTrade2User.MoneyTransactionID, moneyTransactionTrade2User.Sender}); err != nil {
-			return shim.Error(fmt.Sprintf("%s", err))
-		}
-
-		var redemptionFeeTransaction = RedemptionFeeTransaction{transactionInfo.TransactionID + "RedemptionFeeFromUser", transactionInfo.RedemptionFee,  transactionInfo.BuyerID,  tradingManagerID, time.Now().Local().Format("2006-01-02 15:04:05")}
-
-
-		if err := utils.WriteLedger(redemptionFeeTransaction, stub, RedemptionFeeTransactionKey, []string{redemptionFeeTransaction.Sender, redemptionFeeTransaction.RedemptionFeeTransactionID, redemptionFeeTransaction.Receiver}); err != nil {
-			return shim.Error(fmt.Sprintf("%s", err))
-		}
-
-		var serviceChargeTransaction = ServiceChargeTransaction{transactionInfo.TransactionID + "ServiceChargeFromWhale", transactionInfo.ServiceCharge, whaleAccount.AccountId,  tradingManagerID, time.Now().Local().Format("2006-01-02 15:04:05")}
-
-		if err := utils.WriteLedger(serviceChargeTransaction, stub, CommodityTransactionKey, []string{serviceChargeTransaction.Sender, serviceChargeTransaction.ServiceChargeTransactionID, serviceChargeTransaction.Receiver}); err != nil {
-			return shim.Error(fmt.Sprintf("%s", err))
-		}
-
+	if (newTransactionState == "2"){
+		var whaleID string
 		if(transactionInfo.CommodityType.CommodityID == 1){
-			tradingManagerAccount.GoldShare -= transactionInfo.SellShare
-			whaleAccount.GoldShare += transactionInfo.SellShare
-
+			whaleID = goldWhaleID
 		}else if(transactionInfo.CommodityType.CommodityID == 2){
-			tradingManagerAccount.SilverShare -= transactionInfo.SellShare
-			whaleAccount.SilverShare += transactionInfo.SellShare
-
+			whaleID = silverWhaleID
 		}else{
-			tradingManagerAccount.PlatinumShare -= transactionInfo.SellShare
-			whaleAccount.PlatinumShare += transactionInfo.SellShare
-		}
-		whaleAccount.Balance -= (transactionInfo.SellAmount + transactionInfo.ServiceCharge)
-		buyerAccount.Balance += (transactionInfo.SellAmount - transactionInfo.RedemptionFee)
-		tradingManagerAccount.Balance += (transactionInfo.RedemptionFee + transactionInfo.ServiceCharge)
-
-
-	}else {
-		var moneyTransactionTrade2Whale = MoneyTransaction{transactionInfo.TransactionID + "PurchaseMoneyTrade2Whale", transactionInfo.PurchaseAmount,  tradingManagerID, whaleID, time.Now().Local().Format("2006-01-02 15:04:05")}
-
-
-		if err := utils.WriteLedger(moneyTransactionTrade2Whale, stub, MoneyTransactionKey, []string{moneyTransactionTrade2Whale.Receiver, moneyTransactionTrade2Whale.MoneyTransactionID, moneyTransactionTrade2Whale.Sender}); err != nil {
-			return shim.Error(fmt.Sprintf("%s", err))
+			whaleID = platinumWhaleID
 		}
 
-
-		var commodityTransactionWhale2Trade = CommodityTransaction{transactionInfo.TransactionID + "CommodityWhale2Trade", transactionInfo.CommodityType, transactionInfo.PurchaseShare, whaleID,  tradingManagerID, time.Now().Local().Format("2006-01-02 15:04:05")}
-	
-
-		if err := utils.WriteLedger(commodityTransactionWhale2Trade, stub, CommodityTransactionKey, []string{commodityTransactionWhale2Trade.Sender, commodityTransactionWhale2Trade.CommodityTransactionID, commodityTransactionWhale2Trade.Receiver}); err != nil {
-			return shim.Error(fmt.Sprintf("%s", err))
-		}
-
-		var commodityTransactionTrade2User = CommodityTransaction{transactionInfo.TransactionID + "CommodityTrade2User", transactionInfo.CommodityType, transactionInfo.PurchaseShare,  tradingManagerID, transactionInfo.BuyerID, time.Now().Local().Format("2006-01-02 15:04:05")}
-
-		if err := utils.WriteLedger(commodityTransactionTrade2User, stub, CommodityTransactionKey, []string{commodityTransactionTrade2User.Receiver, commodityTransactionTrade2User.CommodityTransactionID, commodityTransactionTrade2User.Sender}); err != nil {
-			return shim.Error(fmt.Sprintf("%s", err))
-		}
-
-		var serviceChargeTransaction = ServiceChargeTransaction{transactionInfo.TransactionID + "ServiceChargeFromUser", transactionInfo.ServiceCharge, transactionInfo.BuyerID,  tradingManagerID, time.Now().Local().Format("2006-01-02 15:04:05")}
-
-		if err := utils.WriteLedger(serviceChargeTransaction, stub, CommodityTransactionKey, []string{serviceChargeTransaction.Sender, serviceChargeTransaction.ServiceChargeTransactionID, serviceChargeTransaction.Receiver}); err != nil {
-			return shim.Error(fmt.Sprintf("%s", err))
-		}
-
-		var redemptionFeeTransaction = RedemptionFeeTransaction{transactionInfo.TransactionID + "RedemptionFeeFromWhale", transactionInfo.RedemptionFee,  whaleAccount.AccountId,  tradingManagerID, time.Now().Local().Format("2006-01-02 15:04:05")}
+		var whaleAccount Account
+		err = whaleAccount.getAccount(stub, whaleID)
 
 
-		if err := utils.WriteLedger(redemptionFeeTransaction, stub, RedemptionFeeTransactionKey, []string{redemptionFeeTransaction.Sender, redemptionFeeTransaction.RedemptionFeeTransactionID, redemptionFeeTransaction.Receiver}); err != nil {
-			return shim.Error(fmt.Sprintf("%s", err))
-		}
+		
+		var buyerAccount Account
+		err = buyerAccount.getAccount(stub, transactionInfo.BuyerID)
+
+		var tradingManagerAccount Account
+		err = tradingManagerAccount.getAccount(stub,tradingManagerID)
+
+		// var goldWhale Account
+		// err = goldWhale.getAccount(stub, whaleID)
+		
+		// var silverWhale Account
+		// err = silverWhale.getAccount(stub, whaleID)
+
+		// var platinumWhale Account
+		// err = platinumWhale.getAccount(stub, whaleID)
+
+
+
+		if(transactionInfo.PurchaseShare == 0){		
+
+			var commodityTransactionTrade2Whale = CommodityTransaction{transactionInfo.TransactionID + "PurchaseCommodityTrade2Whale", transactionInfo.CommodityType, transactionInfo.SellShare,  tradingManagerID, whaleID, time.Now().Local().Format("2006-01-02 15:04:05")}
+
+
+			if err := utils.WriteLedger(commodityTransactionTrade2Whale, stub, CommodityTransactionKey, []string{commodityTransactionTrade2Whale.Receiver, commodityTransactionTrade2Whale.CommodityTransactionID, commodityTransactionTrade2Whale.Sender}); err != nil {
+				return shim.Error(fmt.Sprintf("%s", err))
+			}
+
+			
+
+			var moneyTransactionWhale2Trade = MoneyTransaction{transactionInfo.TransactionID + "RedemptionMoneyWhale2Trade", transactionInfo.SellAmount, whaleID,  tradingManagerID, time.Now().Local().Format("2006-01-02 15:04:05")}
+
+			
+			if err := utils.WriteLedger(moneyTransactionWhale2Trade, stub, MoneyTransactionKey, []string{moneyTransactionWhale2Trade.Sender, moneyTransactionWhale2Trade.MoneyTransactionID, moneyTransactionWhale2Trade.Receiver}); err != nil {
+				return shim.Error(fmt.Sprintf("%s", err))
+			}
+
+			if err != nil {
+				return shim.Error("createMoneyTransaction() : Error writing to state")
+			}
+
+			var moneyTransactionTrade2User = MoneyTransaction{transactionInfo.TransactionID + "RedemptionMoneyTrade2User", transactionInfo.SellAmount,  tradingManagerID, transactionInfo.BuyerID, time.Now().Local().Format("2006-01-02 15:04:05")}
+
+
+			if err := utils.WriteLedger(moneyTransactionTrade2User, stub, MoneyTransactionKey, []string{moneyTransactionTrade2User.MoneyTransactionID, moneyTransactionTrade2User.Sender}); err != nil {
+				return shim.Error(fmt.Sprintf("%s", err))
+			}
+
+			var redemptionFeeTransaction = RedemptionFeeTransaction{transactionInfo.TransactionID + "RedemptionFeeFromUser", transactionInfo.RedemptionFee,  transactionInfo.BuyerID,  tradingManagerID, time.Now().Local().Format("2006-01-02 15:04:05")}
+
+
+			if err := utils.WriteLedger(redemptionFeeTransaction, stub, RedemptionFeeTransactionKey, []string{redemptionFeeTransaction.Sender, redemptionFeeTransaction.RedemptionFeeTransactionID, redemptionFeeTransaction.Receiver}); err != nil {
+				return shim.Error(fmt.Sprintf("%s", err))
+			}
+
+			var serviceChargeTransaction = ServiceChargeTransaction{transactionInfo.TransactionID + "ServiceChargeFromWhale", transactionInfo.SellAmount * serviceChargeRate, whaleAccount.AccountId,  tradingManagerID, time.Now().Local().Format("2006-01-02 15:04:05")}
+
+			if err := utils.WriteLedger(serviceChargeTransaction, stub, ServiceChargeTransactionKey, []string{serviceChargeTransaction.Sender, serviceChargeTransaction.ServiceChargeTransactionID, serviceChargeTransaction.Receiver}); err != nil {
+				return shim.Error(fmt.Sprintf("%s", err))
+			}
+
+			if(transactionInfo.CommodityType.CommodityID == 1){
+				tradingManagerAccount.GoldShare -= transactionInfo.SellShare
+				whaleAccount.GoldShare += transactionInfo.SellShare
+
+			}else if(transactionInfo.CommodityType.CommodityID == 2){
+				tradingManagerAccount.SilverShare -= transactionInfo.SellShare
+				whaleAccount.SilverShare += transactionInfo.SellShare
+
+			}else{
+				tradingManagerAccount.PlatinumShare -= transactionInfo.SellShare
+				whaleAccount.PlatinumShare += transactionInfo.SellShare
+			}
+			whaleAccount.Balance -= (transactionInfo.SellAmount + transactionInfo.ServiceCharge)
+			buyerAccount.Balance += (transactionInfo.SellAmount - transactionInfo.RedemptionFee)
+			tradingManagerAccount.Balance += (transactionInfo.RedemptionFee + transactionInfo.ServiceCharge)
+
+
+		}else {
+			var moneyTransactionTrade2Whale = MoneyTransaction{transactionInfo.TransactionID + "PurchaseMoneyTrade2Whale", transactionInfo.PurchaseAmount,  tradingManagerID, whaleID, time.Now().Local().Format("2006-01-02 15:04:05")}
+
+
+			if err := utils.WriteLedger(moneyTransactionTrade2Whale, stub, MoneyTransactionKey, []string{moneyTransactionTrade2Whale.Receiver, moneyTransactionTrade2Whale.MoneyTransactionID, moneyTransactionTrade2Whale.Sender}); err != nil {
+				return shim.Error(fmt.Sprintf("%s", err))
+			}
+
+
+			var commodityTransactionWhale2Trade = CommodityTransaction{transactionInfo.TransactionID + "CommodityWhale2Trade", transactionInfo.CommodityType, transactionInfo.PurchaseShare, whaleID,  tradingManagerID, time.Now().Local().Format("2006-01-02 15:04:05")}
 		
 
-		if(transactionInfo.CommodityType.CommodityID == 1){
-			tradingManagerAccount.GoldShare -= transactionInfo.PurchaseShare
-			whaleAccount.GoldShare -= transactionInfo.PurchaseShare
-			buyerAccount.GoldShare += transactionInfo.PurchaseShare
-		}else if(transactionInfo.CommodityType.CommodityID == 2){
-			tradingManagerAccount.SilverShare -= transactionInfo.PurchaseShare
-			whaleAccount.SilverShare -= transactionInfo.PurchaseShare
-			buyerAccount.SilverShare += transactionInfo.PurchaseShare
+			if err := utils.WriteLedger(commodityTransactionWhale2Trade, stub, CommodityTransactionKey, []string{commodityTransactionWhale2Trade.Sender, commodityTransactionWhale2Trade.CommodityTransactionID, commodityTransactionWhale2Trade.Receiver}); err != nil {
+				return shim.Error(fmt.Sprintf("%s", err))
+			}
 
-		}else{
-			tradingManagerAccount.PlatinumShare -= transactionInfo.PurchaseShare
-			whaleAccount.PlatinumShare -= transactionInfo.PurchaseShare
-			buyerAccount.PlatinumShare += transactionInfo.PurchaseShare
+			var commodityTransactionTrade2User = CommodityTransaction{transactionInfo.TransactionID + "CommodityTrade2User", transactionInfo.CommodityType, transactionInfo.PurchaseShare,  tradingManagerID, transactionInfo.BuyerID, time.Now().Local().Format("2006-01-02 15:04:05")}
+
+			if err := utils.WriteLedger(commodityTransactionTrade2User, stub, CommodityTransactionKey, []string{commodityTransactionTrade2User.Receiver, commodityTransactionTrade2User.CommodityTransactionID, commodityTransactionTrade2User.Sender}); err != nil {
+				return shim.Error(fmt.Sprintf("%s", err))
+			}
+
+			var serviceChargeTransaction = ServiceChargeTransaction{transactionInfo.TransactionID + "ServiceChargeFromUser", transactionInfo.ServiceCharge, transactionInfo.BuyerID,  tradingManagerID, time.Now().Local().Format("2006-01-02 15:04:05")}
+
+			if err := utils.WriteLedger(serviceChargeTransaction, stub, ServiceChargeTransactionKey, []string{serviceChargeTransaction.Sender, serviceChargeTransaction.ServiceChargeTransactionID, serviceChargeTransaction.Receiver}); err != nil {
+				return shim.Error(fmt.Sprintf("%s", err))
+			}
+
+			var redemptionFeeTransaction = RedemptionFeeTransaction{transactionInfo.TransactionID + "RedemptionFeeFromWhale", transactionInfo.PurchaseAmount * redemptionFeeRate,  whaleAccount.AccountId,  tradingManagerID, time.Now().Local().Format("2006-01-02 15:04:05")}
+
+
+			if err := utils.WriteLedger(redemptionFeeTransaction, stub, RedemptionFeeTransactionKey, []string{redemptionFeeTransaction.Sender, redemptionFeeTransaction.RedemptionFeeTransactionID, redemptionFeeTransaction.Receiver}); err != nil {
+				return shim.Error(fmt.Sprintf("%s", err))
+			}
+			
+
+			if(transactionInfo.CommodityType.CommodityID == 1){
+				tradingManagerAccount.GoldShare -= transactionInfo.PurchaseShare
+				whaleAccount.GoldShare -= transactionInfo.PurchaseShare
+				buyerAccount.GoldShare += transactionInfo.PurchaseShare
+			}else if(transactionInfo.CommodityType.CommodityID == 2){
+				tradingManagerAccount.SilverShare -= transactionInfo.PurchaseShare
+				whaleAccount.SilverShare -= transactionInfo.PurchaseShare
+				buyerAccount.SilverShare += transactionInfo.PurchaseShare
+
+			}else{
+				tradingManagerAccount.PlatinumShare -= transactionInfo.PurchaseShare
+				whaleAccount.PlatinumShare -= transactionInfo.PurchaseShare
+				buyerAccount.PlatinumShare += transactionInfo.PurchaseShare
+
+			}
+			whaleAccount.Balance += (transactionInfo.PurchaseAmount - transactionInfo.RedemptionFee)
+			tradingManagerAccount.Balance -= (transactionInfo.PurchaseAmount - transactionInfo.RedemptionFee)
 
 		}
-		whaleAccount.Balance += (transactionInfo.PurchaseAmount - transactionInfo.RedemptionFee)
-		tradingManagerAccount.Balance -= (transactionInfo.PurchaseAmount - transactionInfo.RedemptionFee)
+
+		if err := utils.WriteLedger(buyerAccount, stub, AccountKey, []string{buyerAccount.AccountId}); err != nil {
+			return shim.Error(fmt.Sprintf("fail to reduce user balance %s", err))
+		}
+		
+		if err := utils.WriteLedger(tradingManagerAccount, stub, AccountKey, []string{tradingManagerAccount.AccountId}); err != nil {
+			return shim.Error(fmt.Sprintf("fail to reduce user balance %s", err))
+		}
+
+		if err := utils.WriteLedger(whaleAccount, stub, AccountKey, []string{whaleID}); err != nil {
+			return shim.Error(fmt.Sprintf("fail to reduce user balance %s", err))
+		}
 
 	}
-
-	if err := utils.WriteLedger(buyerAccount, stub, AccountKey, []string{buyerAccount.AccountId}); err != nil {
-		return shim.Error(fmt.Sprintf("fail to reduce user balance %s", err))
-	}
-	
-	if err := utils.WriteLedger(tradingManagerAccount, stub, AccountKey, []string{tradingManagerAccount.AccountId}); err != nil {
-		return shim.Error(fmt.Sprintf("fail to reduce user balance %s", err))
-	}
-
-	if err := utils.WriteLedger(whaleAccount, stub, AccountKey, []string{whaleID}); err != nil {
-		return shim.Error(fmt.Sprintf("fail to reduce user balance %s", err))
-	}
-
-	
 
 	// Notify listeners that an event "eventInvoke" has been executed
 	err = stub.SetEvent("eventInvoke", []byte{})

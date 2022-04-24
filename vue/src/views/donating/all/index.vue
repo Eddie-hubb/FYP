@@ -39,14 +39,20 @@
           <el-tag v-if="val.transactionStateType.transactionStateID === 1">{{ val.transactionStateType.transactionStateName }}</el-tag>
           <el-tag v-if="val.transactionStateType.transactionStateID === 2" type="success">{{ val.transactionStateType.transactionStateName }}</el-tag>
         </div>
+        <el-button v-if="isManager&&val.transactionStateType.transactionStateID !== 2" type="primary" @click="updateStateToSuccess(val.transactionID, val.buyerID)">
+          update state
+        </el-button>
       </el-card>
+    </div>
+    <div v-else>
+      <i class="el-icon-loading" />
     </div>
   </div>
 </template>
 
 <script>
 import { mapGetters } from 'vuex'
-import { queryTransactionInfoList } from '@/api/transaction'
+import { queryTransactionInfoList, updateState } from '@/api/transaction'
 import UserInfoBar from '@/components/UserInfoBar'
 
 export default {
@@ -57,6 +63,7 @@ export default {
   data() {
     return {
       loading: true,
+      isManager: false,
       transactionInfoList: []
     }
   },
@@ -69,19 +76,42 @@ export default {
     ])
   },
   created() {
-    queryTransactionInfoList({
-      accountID: this.accountId
-    }).then(response => {
-      if (response !== null) {
-        this.transactionInfoList = response
-      }
-      this.loading = false
-    }).catch(_ => {
-      this.loading = false
-    })
+    if (this.roles[0] === 'manager') {
+      this.isManager = true
+    }
+    this.loadInfoList()
   },
   methods: {
-
+    updateStateToSuccess(id, buyerID) {
+      this.$confirm('Confirm to update state to success?', 'Tip', {
+        confirmButtonText: 'Confirm',
+        cancelButtonText: 'Cancel',
+        type: 'info'
+      }).then(() => {
+        this.loading = true
+        updateState({
+          accountId: buyerID,
+          transactionID: id,
+          newState: '2'
+        }).then((res) => {
+          this.loadInfoList()
+        }).catch(() => {
+          this.loading = false
+        })
+      })
+    },
+    loadInfoList() {
+      queryTransactionInfoList({
+        accountID: this.roles[0] === 'manager' ? '' : this.accountId
+      }).then(response => {
+        if (response !== null) {
+          this.transactionInfoList = response
+        }
+        this.loading = false
+      }).catch(_ => {
+        this.loading = false
+      })
+    }
   }
 }
 

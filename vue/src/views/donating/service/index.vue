@@ -7,7 +7,7 @@
           <span>{{ val.createTime }}</span>
         </div>
         <div class="item">
-          <span>Amount Of Money: {{ val.amountOfMoney }}</span>
+          <span>Amount Of Money: {{ val.amountOfCharge }}</span>
         </div>
         <div class="item">
           <span>Receiver: {{ val.receiver }}</span>

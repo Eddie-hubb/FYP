@@ -3,13 +3,13 @@
     <user-info-bar />
     <div class="create-form">
       <el-form ref="portfolioForm" :model="portfolioForm" label-width="100px" label-position="right">
-        <el-form-item label="gold" prop="gold">
+        <el-form-item label="gold(Troy Ounce)" prop="gold">
           <el-input-number v-model="portfolioForm.gold" :min="0" :step="50" />
         </el-form-item>
-        <el-form-item label="silver" prop="silver">
+        <el-form-item label="silver(Troy Ounce)" prop="silver">
           <el-input-number v-model="portfolioForm.silver" :min="0" :step="50" />
         </el-form-item>
-        <el-form-item label="platinum" prop="platinum">
+        <el-form-item label="platinum(Troy Ounce)" prop="platinum">
           <el-input-number v-model="portfolioForm.platinum" :min="0" :step="50" />
         </el-form-item>
         <el-form-item>
