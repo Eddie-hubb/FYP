@@ -50,6 +50,15 @@
             />
           </el-select>
         </el-form-item>
+        <el-form-item label="Minimal Asset Number">
+          <el-input-number v-model="mlForm.constraint.minimal_asset_num" :precision="0" :min="2" />
+        </el-form-item>
+        <el-form-item label="Minimal Asset Weight">
+          <el-input-number v-model="mlForm.constraint.minimal_asset_weight" :min="0" :precision="0" :max="10000" />
+        </el-form-item>
+        <el-form-item label="Maximal Asset Weight">
+          <el-input-number v-model="mlForm.constraint.maximal_asset_weight" :min="0" :precision="0" :max="10000" />
+        </el-form-item>
 
         <el-form-item>
           <el-button v-loading="isLoading" type="primary" @click="submitForm('mlForm')">
@@ -117,15 +126,12 @@ export default {
       ],
       mlForm: {
         start_end_date: [],
-        end_date: '',
         validation_start_end_date: [],
-        validation_end_date: '',
         asset_list: ['Gold', 'Silver'],
         constraint: {
           minimal_asset_num: 2,
           minimal_asset_weight: 500,
-          maximal_asset_weight: 7000,
-          account_id: this.accountId
+          maximal_asset_weight: 7000
         },
         target: 'Minimal_Volatility',
         algorithm: 'EA'
@@ -166,9 +172,7 @@ export default {
             validation_end_date: this.mlForm.validation_start_end_date[1],
             asset_list: this.mlForm.asset_list,
             constraint: {
-              minimal_asset_num: 2,
-              minimal_asset_weight: 500,
-              maximal_asset_weight: 7000,
+              ...this.mlForm.constraint,
               account_id: this.accountId
             },
             target: this.mlForm.target,
